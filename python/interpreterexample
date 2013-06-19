@@ -1,0 +1,4 @@
+#!/bin/csh
+setenv JYTHONLIB /usr/share/java/jython.jar
+setenv CLASSPATH ${JYTHONLIB}:${CLASSPATH}
+java InterpreterExample

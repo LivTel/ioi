@@ -1,0 +1,1 @@
+svn checkout http://ioi-control.googlecode.com/svn/trunk/SIDECARComm ioi-control-read-only

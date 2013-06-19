@@ -1,0 +1,62 @@
+cd ~dev/bin/ioi/java
+java ngat.ioi.command.InitializeCommand ioi1 5000 2
+
+java ngat.ioi.command.SetFSParamCommand <hostname> <port number> <nReset> <nRead> <nGroup> <exposure length(s)> <nRamp>
+java ngat.ioi.command.SetFSParamCommand ioi1 5000 3 3 1 10.0 1
+3 resets, 3 reads, 10s exposure 1 ramp(multrun)
+1 group, not sure what this does, setting it to 0 causes AcquireRamp to fail.
+
+java ngat.ioi.command.SetRampParamCommand <hostname> <port number> <nReset> <nRead> <nGroup> <nDrop> <nRamp>
+java ngat.ioi.command.SetRampParamCommand ioi1 5000 3 3 10 3 1
+3 resets, 10 groups consisting of 3 reads followed by 3 drops, 1 ramp(multrun)
+
+java ngat.ioi.command.SetFSModeCommand <hostname> <port number> <mode>
+java ngat.ioi.command.SetFSModeCommand ioi1 5000 UP_THE_RAMP
+java ngat.ioi.command.SetFSModeCommand ioi1 5000 FOWLER
+
+java ngat.ioi.command.AcquireRampCommand <hostname> <port number>
+java ngat.ioi.command.AcquireRampCommand ioi1 5000
+@ 16:00:00
+
+When you have finished, type:
+java ngat.ioi.command.PowerDownASICCommand ioi1 5000
+
+Misc commands:
+java ngat.ioi.command.PingCommand ioi1 5000
+java ngat.ioi.command.GetConfigCommand ioi1 5000
+
+java ngat.ioi.command.SetFSModeCommand ioi1 5000 UP_THE_RAMP
+java ngat.ioi.command.SetRampParamCommand ioi1 5000 3 3 10 3 1
+3 resets, 10 groups consisting of 3 reads followed by 3 drops, 1 ramp(multrun)
+FRMTIME =              1.45479 /Frame time                                      
+EXPTIME =              14.5479 /sec                                             
+
+
+java ngat.ioi.command.SetFSParamCommand ioi1 5000 3 3 1 10.0 1
+3 resets, 3 reads, 10s exposure 1 ramp(multrun)
+java ngat.ioi.command.SetFSModeCommand ioi1 5000 FOWLER
+FRMTIME =              1.45479 /Frame time                                      
+EXPTIME =            10.000000 /sec                                             
+INTTIME =            1.4547900 /integration time   (frame 1    
+INTTIME =            2.9095800 /integration time   (frame 2)
+INTTIME =            4.3643699 /integration time  (frame 3)
+INTTIME =            15.819160 /integration time  (frame 4)
+INTTIME =            17.273950 /integration time (frame 5)
+INTTIME =            18.728740 /integration time (frame 6)
+
+Pixel time 10us.
+10us x 2048 x 2048 = 41943040us  = 41.9s
+but there are 32 multiplexers: 41943040/32 = 1310720us = 1.3s
+
+
+www.lancesimms.com/Thesis/ThesisChapters/Chapter3.pdf
+From Chapter3.pdf
+
+In a fashion similar to the scheme used in the NICMOS and JWST specifications [59], we refer to
+a ramp having a cadence of Nrs reset frames, Nd drop frames, Ng group frames, and Nrd read
+frames, as a Nrs-Nrd-Nd-Ng ramp. Such a ramp has a total of Ng Ã Nrd data frames. With these
+definitions, the exposure time of a ramp in full frame is given by
+te = Ng  (Nd + Nrd)  tf , (3.1)
+with tf being the frame time given above. To avoid confusion in the following sections, we will use
+this syntax and reserve the terms ramp or exposure for such a sequence. We will use the terms read
+or frame to describe a read frame in these ramps. And the term image will be us

@@ -1,0 +1,33 @@
+In the lab:
+- Power supply on (for cooling fan)
+- Plug Jade USB into control computer
+
+Configure USB device
+http://ioi1/vbox
+eng
+standard eng password
+
+ioi_win Settings->USB Devices
+Bitwise Systems QuickUSB (Jade card)
+Attach this to windows virtual machine
+
+rdesktop ioi1:3389 (windows virtual machine)
+standard eng password - keyboard for @ is something else (either " or £)
+rdesktop ioi1:3390 (linux virtual machine (guest))
+
+ssh to linux virtual machine:
+ssh -p 2222 eng@ioi1
+
+Ensure Hal Service is started (not done automatically)
+
+IDL Server machine : click on splash screen to start
+System->Enable Socket Server
+Port number 5000
+
+
+Normally started with:
+Initialize2
+Then normal commands
+shutdown with:
+POWERDOWNASIC command
+
