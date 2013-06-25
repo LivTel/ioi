@@ -1,5 +1,5 @@
 // SETUPImplementation.java
-// $Header$
+// $HeadURL$
 package ngat.ioi;
 
 import ngat.message.base.*;

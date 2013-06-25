@@ -1,5 +1,5 @@
 // REBOOTImplementation.java
-// $Header$
+// $HeadURL$
 package ngat.ioi;
 
 import java.io.*;

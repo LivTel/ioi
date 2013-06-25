@@ -1,5 +1,5 @@
 // MULTRUNImplementation.java
-// $Header$
+// $HeadURL$
 package ngat.ioi;
 
 import java.lang.*;

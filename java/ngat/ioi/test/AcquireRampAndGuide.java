@@ -1,5 +1,5 @@
 // AcquireRampAndGuide.java
-// $Header$
+// $HeadURL$
 package ngat.ioi.test;
 
 import java.lang.*;

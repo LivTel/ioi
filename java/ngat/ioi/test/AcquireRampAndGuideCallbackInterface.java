@@ -1,5 +1,5 @@
 // AcquireRampAndGuideCallbackInterface.java
-// $Header$
+// $HeadURL$
 package ngat.ioi.test;
 import java.lang.*;
 import ngat.util.logging.*;

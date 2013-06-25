@@ -1,5 +1,5 @@
 // SetWindowModeCommand.java
-// $Header$
+// $HeadURL$
 package ngat.ioi.command;
 
 import java.io.*;
