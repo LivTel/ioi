@@ -1,7 +1,7 @@
 #!/bin/csh
 # $Header$
-# Version: $Revision: 1.1 $
-# By $Author: cjm $
+# Version: $Revision$
+# By $Author$
 # Change the icc into engineering mode - kill all robotic control processes
 # Usage:
 #	ioi_engineering_mode

@@ -15,7 +15,7 @@ import ngat.util.logging.*;
  * This class provides a way to drive the Sidecar via the IDL socket interface, to do a ramp
  * and simultaneusly read out a sub-window as a guide window whilst the science ramp takes place.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class AcquireRampAndGuide
 {

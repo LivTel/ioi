@@ -16,7 +16,7 @@ import ngat.util.logging.*;
  * Test program to drive an instance of AcquireRampAndGuide. This test program can take a science ramp of the whole
  * array, whilst simultaneously reading out a sub-window as a guide ramp.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class TestAcquireRampAndGuide implements AcquireRampAndGuideCallbackInterface
 {

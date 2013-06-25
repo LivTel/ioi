@@ -8,7 +8,7 @@ import ngat.util.logging.*;
  * This interface defines a method that is called from within the expose method of AcquireRampAndGuide,
  * whenever a science or guide sub-ramp has been completed.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision$
  */
 public interface AcquireRampAndGuideCallbackInterface
 {

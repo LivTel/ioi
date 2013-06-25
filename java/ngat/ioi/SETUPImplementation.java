@@ -9,7 +9,7 @@ import ngat.message.ISS_INST.SETUP_DONE;
  * This class provides the generic implementation for SETUP commands sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class SETUPImplementation extends FITSImplementation implements JMSCommandImplementation
 {

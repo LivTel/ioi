@@ -15,7 +15,7 @@ import ngat.message.INST_DP.*;
  * resources to make FITS files.
  * @see FITSImplementation
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class EXPOSEImplementation extends FITSImplementation implements JMSCommandImplementation
 {

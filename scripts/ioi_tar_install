@@ -1,7 +1,7 @@
 #!/bin/csh
 # $Header$
-# Version: $Revision: 1.1 $
-# By $Author: cjm $
+# Version: $Revision$
+# By $Author$
 # Install a deployment tar created by ioi_make_deployment
 # Usage:
 #	ioi_tar_install <machine>

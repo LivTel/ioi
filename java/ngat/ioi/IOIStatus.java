@@ -15,7 +15,7 @@ import ngat.util.logging.FileLogHandler;
 /**
  * This class holds status information for the IOI program.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision$
  */
 public class IOIStatus
 {

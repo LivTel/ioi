@@ -22,7 +22,7 @@ import ngat.util.logging.*;
  * use the hardware libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.12 $
+ * @version $Revision$
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {

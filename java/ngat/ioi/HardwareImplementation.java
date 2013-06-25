@@ -20,7 +20,7 @@ import ngat.util.logging.*;
  * This is the Lakeshore Model 331 temperature controller.
  * This class provides some common hardware related routines to move folds, and FITS
  * interface routines needed by many command implementations
- * @version $Revision: 1.2 $
+ * @version $Revision$
  */
 public class HardwareImplementation extends CommandImplementation implements JMSCommandImplementation
 {

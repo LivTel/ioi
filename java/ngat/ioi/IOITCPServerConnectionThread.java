@@ -16,7 +16,7 @@ import ngat.util.logging.*;
 /**
  * This class extends the TCPServerConnectionThread class for the IOI application.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class IOITCPServerConnectionThread extends TCPServerConnectionThread
 {

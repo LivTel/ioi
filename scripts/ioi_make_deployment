@@ -1,7 +1,7 @@
 #!/bin/csh
 # $Header$
-# Version: $Revision: 1.8 $
-# By $Author: cjm $
+# Version: $Revision$
+# By $Author$
 # Make a deployment tar file.
 # This contains:
 # 	The IO:I control system

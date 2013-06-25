@@ -11,7 +11,7 @@ import java.io.*;
  * This is used in, for instance, the REBOOTImplementation, so that the 
  * REBOOT's DONE mesage is returned to the client before the IO:I is terminated.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class IOIREBOOTQuitThread extends Thread
 {

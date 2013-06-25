@@ -11,7 +11,7 @@ import ngat.message.ISS_INST.INTERRUPT_DONE;
  * talk to the hardware.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class INTERRUPTImplementation extends HardwareImplementation implements JMSCommandImplementation
 {

@@ -18,7 +18,7 @@ import ngat.util.logging.*;
  * Java Message System. It extends SETUPImplementation.
  * @see SETUPImplementation
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision$
  */
 public class CONFIGImplementation extends SETUPImplementation implements JMSCommandImplementation
 {

@@ -11,7 +11,7 @@ import ngat.net.*;
 /**
  * This class extends the TCPServer class for the IO:I application.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class IOITCPServer extends TCPServer
 {
