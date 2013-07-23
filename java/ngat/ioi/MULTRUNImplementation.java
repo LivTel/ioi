@@ -1,5 +1,6 @@
 // MULTRUNImplementation.java
 // $HeadURL$
+// $Revision$
 package ngat.ioi;
 
 import java.lang.*;
@@ -79,16 +80,20 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * <li>It moves the fold mirror to the correct location.
 	 * <li>For each exposure it performs the following:
 	 *	<ul>
+	 *      <li>We issue a RA/DEC offset to the ISS, for sky dithering (<b>offsetTelescope</b>).
 	 * 	<li>It generates some FITS headers from the CCD setup, ISS and BSS. 
 	 * 	<li>Sets the time of exposure and saves the Fits headers.
 	 * 	<li>It performs an exposure and saves the data from this to disc.
 	 * 	<li>Keeps track of the generated filenames in the list.
 	 * 	</ul>
+	 * <li>We offset the telscope back to 0,0 using resetTelescopeOffset.
 	 * <li>It sets up the return values to return to the client.
 	 * </ul>
 	 * The resultant filename or the relevant error code is put into the an object of class MULTRUN_DONE and
 	 * returned. During execution of these operations the abort flag is tested to see if we need to
 	 * stop the implementation of this command.
+	 * @see #offsetTelescope
+	 * @see #resetTelescopeOffset
 	 * @see CommandImplementation#testAbort
 	 * @see FITSImplementation#clearFitsHeaders
 	 * @see FITSImplementation#getFitsHeadersFromISS
@@ -224,27 +229,44 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		{
 		// initialise list of FITS filenames for this frame
 			filenameList = new Vector();
+		// RA/Dec Offset for sky dithering.
+			if(offsetTelescope(multRunCommand,multRunDone,index) == false)
+			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				return multRunDone;
+			}
 		// get fits headers
 			clearFitsHeaders();
 			if(setFitsHeaders(multRunCommand,multRunDone,obsType,
 				multRunCommand.getExposureTime(),multRunCommand.getNumberExposures()) == false)
 			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			if(getFitsHeadersFromISS(multRunCommand,multRunDone) == false)
 			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			if(testAbort(multRunCommand,multRunDone) == true)
 			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			if(getFitsHeadersFromBSS(multRunCommand,multRunDone) == false)
 			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			if(testAbort(multRunCommand,multRunDone) == true)
 			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			// get a timestamp before taking an exposure
@@ -261,6 +283,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					ioi.error(this.getClass().getName()+":processCommand:AcquireRamp failed:"+
 						  acquireRampCommand.getReplyErrorCode()+":"+
 						  acquireRampCommand.getReplyErrorString());
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
 					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1209);
 					multRunDone.setErrorString("processCommand:AcquireRamp failed:"+
 								   acquireRampCommand.getReplyErrorCode()+":"+
@@ -274,6 +298,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				retval = false;
 				ioi.error(this.getClass().getName()+
 					":processCommand:AcquireRampCommand failed:"+command+":"+e.toString());
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
 				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1200);
 				multRunDone.setErrorString(e.toString());
 				multRunDone.setSuccessful(false);
@@ -289,6 +315,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				retval = false;
 				ioi.error(this.getClass().getName()+
 					":processCommand:findRampData failed:"+command+":"+e.toString());
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
 				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1201);
 				multRunDone.setErrorString(e.toString());
 				multRunDone.setSuccessful(false);
@@ -310,6 +338,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				retval = false;
 				ioi.error(this.getClass().getName()+
 					":processCommand:sendAcknowledge:"+command+":"+e.toString());
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
 				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1202);
 				multRunDone.setErrorString(e.toString());
 				multRunDone.setSuccessful(false);
@@ -327,6 +357,14 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		}// end while
 	// if a failure occurs, return now
 		if(!retval)
+		{
+			//moveFilterToBlank(multRunCommand,multRunDone);
+			resetTelescopeOffset(multRunCommand,multRunDone);
+			return multRunDone;
+		}
+		//moveFilterToBlank(multRunCommand,multRunDone);
+	// reset telescope offsets
+		if(resetTelescopeOffset(multRunCommand,multRunDone) == false)
 			return multRunDone;
 		index = 0;
 		retval = true;
@@ -395,6 +433,115 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		multRunDone.setSuccessful(true);
 	// return done object.
 		return multRunDone;
+	}
+
+	/**
+	 * Method to offset the telescope by a small amount in RA/Dec, to dither the sky.
+	 * @param multRunCommand The command requiring this configuration to be done.
+	 * @param multRunDone The done message, filled in if with a suitable error if the method failed.
+	 * @param index The index in the list of exposures to do in the Multrun, from 0 to the number
+	 *        of exposures specified by the MULTRUN. This number is used to calculate which
+	 *        RA/Dec offset to use.
+	 * @return The method returns true on success and false on failure.	 
+	 * @see ngat.message.ISS_INST.OFFSET_RA_DEC
+	 */
+	protected boolean offsetTelescope(MULTRUN multRunCommand,MULTRUN_DONE multRunDone,int index) 
+	{
+		OFFSET_RA_DEC offsetRaDecCommand = null;
+		INST_TO_ISS_DONE instToISSDone = null;
+		int raDecOffsetCount,raDecOffsetIndex;
+		float raOffset,decOffset;
+		boolean doRADecOffset;
+
+	 // get configuration
+		try
+		{
+			doRADecOffset = status.getPropertyBoolean("ioi.multrun.offset.enable");
+			raDecOffsetCount = status.getPropertyInteger("ioi.multrun.offset.count");
+			raDecOffsetIndex = index % raDecOffsetCount;
+			raOffset = status.getPropertyFloat("ioi.multrun.offset."+raDecOffsetIndex+".ra");
+			decOffset = status.getPropertyFloat("ioi.multrun.offset."+raDecOffsetIndex+".dec");
+		}
+		catch(Exception e)
+		{
+			ioi.error(this.getClass().getName()+
+				  ":offsetTelescope:"+multRunCommand+":"+e.toString());
+			multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1210);
+			multRunDone.setErrorString(e.toString());
+			multRunDone.setSuccessful(false);
+			return false;
+		}
+		if(doRADecOffset)
+		{
+			// tell telescope of offset RA and DEC
+			offsetRaDecCommand = new OFFSET_RA_DEC(multRunCommand.getId());
+			offsetRaDecCommand.setRaOffset(raOffset);
+			offsetRaDecCommand.setDecOffset(decOffset);
+			instToISSDone = ioi.sendISSCommand(offsetRaDecCommand,serverConnectionThread);
+			if(instToISSDone.getSuccessful() == false)
+			{
+				String errorString = null;
+				
+				errorString = new String("Offset Ra Dec failed:ra = "+raOffset+
+							 ", dec = "+decOffset+":"+instToISSDone.getErrorString());
+				ioi.error(errorString);
+				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1211);
+				multRunDone.setErrorString(this.getClass().getName()+":offsetTelescope:"+errorString);
+				multRunDone.setSuccessful(false);
+				return false;
+			}
+		}// end if
+		return true;
+	}
+
+	/**
+	 * Method to reset the telescope offset to 0,0.
+	 * @param multRunCommand The command requiring this configuration to be done.
+	 * @param multRunDone The done message, filled in if with a suitable error if the method failed.
+	 * @return The method returns true on success and false on failure.	 
+	 * @see ngat.message.ISS_INST.OFFSET_RA_DEC
+	 */
+	protected boolean resetTelescopeOffset(MULTRUN multRunCommand,MULTRUN_DONE multRunDone) 
+	{
+		OFFSET_RA_DEC offsetRaDecCommand = null;
+		INST_TO_ISS_DONE instToISSDone = null;
+		boolean doRADecOffset;
+
+		try
+		{
+			doRADecOffset = status.getPropertyBoolean("ioi.multrun.offset.enable");
+		}
+		catch(Exception e)
+		{
+			ioi.error(this.getClass().getName()+
+				  ":offsetTelescope:"+multRunCommand+":"+e.toString());
+			multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1212);
+			multRunDone.setErrorString(e.toString());
+			multRunDone.setSuccessful(false);
+			return false;
+		}
+		if(doRADecOffset)
+		{
+			// tell telescope of offset RA and DEC
+			offsetRaDecCommand = new OFFSET_RA_DEC(multRunCommand.getId());
+			offsetRaDecCommand.setRaOffset(0.0f);
+			offsetRaDecCommand.setDecOffset(0.0f);
+			instToISSDone = ioi.sendISSCommand(offsetRaDecCommand,serverConnectionThread);
+			if(instToISSDone.getSuccessful() == false)
+			{
+				String errorString = null;
+				
+				errorString = new String("Resetting Offset Ra Dec failed:"+
+							 instToISSDone.getErrorString());
+				ioi.error(errorString);
+				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1213);
+				multRunDone.setErrorString(this.getClass().getName()+
+							   ":resetTelescopeOffset:"+errorString);
+				multRunDone.setSuccessful(false);
+				return false;
+			}
+		}// end if
+		return true;
 	}
 }
 //
