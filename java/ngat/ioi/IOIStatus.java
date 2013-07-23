@@ -46,6 +46,13 @@ public class IOIStatus
 	 */
 	private int logLevel = 0;
 	/**
+	 * The current thread that the IO:I Control System is using to process the
+	 * <a href="#currentCommand">currentCommand</a>. This does not get set for
+	 * commands that can be sent while others are in operation, such as Abort and get status comamnds.
+	 * This can be null when no command is currently being processed.
+	 */
+	private Thread currentThread = null;
+	/**
 	 * The current command that the IO:I Control System is working on. This does not get set for
 	 * commands that can be sent while others are in operation, such as Abort and get status comamnds.
 	 * This can be null when no command is currently being processed.
@@ -201,6 +208,26 @@ public class IOIStatus
 	public synchronized ISS_TO_INST getCurrentCommand()
 	{
 		return currentCommand;
+	}
+
+	/**
+	 * Set the thread that is currently executing the <a href="#currentCommand">currentCommand</a>.
+	 * @param thread The thread that is currently executing.
+	 * @see #currentThread
+	 */
+	public synchronized void setCurrentThread(Thread thread)
+	{
+		currentThread = thread;
+	}
+
+	/**
+	 * Get the the thread currently executing to process the <a href="#currentCommand">currentCommand</a>.
+	 * @return The thread currently being executed.
+	 * @see #currentThread
+	 */
+	public synchronized Thread getCurrentThread()
+	{
+		return currentThread;
 	}
 
 	/**

@@ -20,7 +20,7 @@ CALIBRATE_IMPL_SRCS 	=
 EXPOSE_IMPL_SRCS	= EXPOSEImplementation.java MULTRUNImplementation.java
 #TIMED_MULTRUNATImplementation.java
 INTERRUPT_IMPL_SRCS 	= INTERRUPTImplementation.java GET_STATUSImplementation.java REBOOTImplementation.java \
-#ABORTImplementation.java
+			ABORTImplementation.java
 SETUP_IMPL_SRCS		= SETUPImplementation.java CONFIGImplementation.java
 OBJS 		= $(SRCS:%.java=$(BINDIR)/%.class)
 

@@ -6,6 +6,9 @@ import java.lang.*;
 import ngat.ioi.command.*;
 import ngat.message.base.*;
 import ngat.message.ISS_INST.ABORT_DONE;
+import ngat.net.*;
+import ngat.util.*;
+import ngat.util.logging.*;
 
 /**
  * This class provides the implementation for the ABORT command sent to a server using the
@@ -70,30 +73,54 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 		TelnetConnection idlTelnetConnection = null;
 		IOITCPServerConnectionThread thread = null;
 		IOIStatus status = null;
+		PingCommand pingCommand = null;
 		StopAcquisitionCommand stopAcquisitionCommand = null;
 
-		logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":processCommand:Started.");
+		ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":processCommand:Started.");
 	// tell the thread itself to abort at a suitable point
-		logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":processCommand:Tell thread to abort.");
+		ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":processCommand:Tell thread to abort.");
 		status = ioi.getStatus();
-		thread = (OTCPServerConnectionThread)status.getCurrentThread();
+		thread = (IOITCPServerConnectionThread)status.getCurrentThread();
 		if(thread != null)
 			thread.setAbortProcessCommand();
 		// are we currently exposing? If so stop the acquisition
 		// Use Ping to see if an exposure is in progress
-		logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+		ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
 			   ":processCommand:Use ping to get exposure status.");
 		idlTelnetConnection = ioi.getIDLTelnetConnection();
 		pingCommand = new PingCommand();
 		pingCommand.setTelnetConnection(idlTelnetConnection);
-		pingCommand.sendCommand();
+		try
+		{
+			pingCommand.sendCommand();
+		}
+		catch(Exception e)
+		{
+			ioi.error(this.getClass().getName()+":processCommand:Sending ping command failed:",e);
+			abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2401);
+			abortDone.setErrorString("processCommand:Sending ping command failed:"+e);
+			abortDone.setSuccessful(false);
+			return abortDone;
+		}
 		if(pingCommand.getReplyErrorCode() == -1) // an exposure is in progress
 		{
-			logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
-				   ":processCommand:Exposure is in progress:Send StopAcquisition command.");
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				":processCommand:Exposure is in progress:Send StopAcquisition command.");
 			stopAcquisitionCommand = new StopAcquisitionCommand();
 			stopAcquisitionCommand.setTelnetConnection(idlTelnetConnection);
-			stopAcquisitionCommand.sendCommand();
+			try
+			{
+				stopAcquisitionCommand.sendCommand();
+			}
+			catch(Exception e)
+			{
+				ioi.error(this.getClass().getName()+
+					  ":processCommand:Sending StopAcquisition command failed:",e);
+				abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2402);
+				abortDone.setErrorString("processCommand:Sending StopAcquisition command failed:"+e);
+				abortDone.setSuccessful(false);
+				return abortDone;
+			}
 			if(stopAcquisitionCommand.getReplyErrorCode() != 0)
 			{
 				ioi.error(this.getClass().getName()+":processCommand:StopAcquisition failed:"+
@@ -109,13 +136,13 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 		}
 		else
 		{
-			logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
 				   ":processCommand:Exposure NOT in progress:NOT Sending StopAcquisition command.");
 		}
 	// abort the dprt
-		logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":processCommand:Tell DpRt to abort.");
+		ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":processCommand:Tell DpRt to abort.");
 		ioi.sendDpRtCommand(dprtAbort,serverConnectionThread);
-		logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":processCommand:Finished.");
+		ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":processCommand:Finished.");
 	// return done object.
 		abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_NO_ERROR);
 		abortDone.setErrorString("");
