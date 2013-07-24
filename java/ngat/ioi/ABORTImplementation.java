@@ -46,7 +46,7 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 	 * @param command The command instance we are implementing.
 	 * @return An instance of ACK with the timeToComplete set.
 	 * @see ngat.message.base.ACK#setTimeToComplete
-	 * @see OTCPServerConnectionThread#getDefaultAcknowledgeTime
+	 * @see IOITCPServerConnectionThread#getDefaultAcknowledgeTime
 	 */
 	public ACK calculateAcknowledgeTime(COMMAND command)
 	{

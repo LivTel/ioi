@@ -1,6 +1,6 @@
 # Makefile
 # $Header: /home/dev/src/tiptilt/java/RCS/Makefile,v 1.1 2011/11/07 16:59:46 cjm Exp $
-# $Revision: 1.1 $
+# $Revision$
 include ../Makefile.common
 include ../../Makefile.common
 

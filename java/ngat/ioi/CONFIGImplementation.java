@@ -177,6 +177,20 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 			configDone.setSuccessful(false);
 			return configDone;
 		}
+	// send focus offset 
+		try
+		{
+			setFocusOffset(configCommand.getId());
+		}
+		catch(Exception e)
+		{
+			ioi.error(this.getClass().getName()+":processCommand:"+
+				command+":setFocusOffset failed:",e);
+			configDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+805);
+			configDone.setErrorString("setFocusOffset failed:"+e.toString());
+			configDone.setSuccessful(false);
+			return configDone;
+		}
 	// Increment unique config ID.
 	// This is queried when saving FITS headers to get the CONFIGID value.
 		try

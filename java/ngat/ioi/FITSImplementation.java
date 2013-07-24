@@ -592,6 +592,98 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			   ":findRampData:finished and returning directory:"+directoryString+".");
 		return directoryString;
 	}
+
+	/**
+	 * Routine to set the telescope focus offset. The offset sent is based on:
+	 * <ul>
+	 * <li>The instrument's offset with respect to the telescope's natural offset (in the configuration
+	 *     property 'ioi.focus.offset'.
+	 * <li>An offset returned from the Beam Steering System, based on the position of it's mechanisms.
+	 * <ul>
+	 * The BSS focus offset is queryed using a GET_FOCUS_OFFSET command to the BSS. The returned offset
+	 * is cached in IOIStatus, to be used when writing FITS headers.
+	 * This method sends a OFFSET_FOCUS_CONTROL command to
+	 * the ISS. OFFSET_FOCUS_CONTROL means thats the offset focus will only be enacted if the BSS thinks this
+	 * instrument is in control of the FOCUS at the time this command is sent.
+	 * @param configId The Id is used as the OFFSET_FOCUS_CONTROL and GET_FOCUS_OFFSET command's id.
+	 * @exception Exception Thrown if the return value of the OFFSET_FOCUS_CONTROL ISS command is false.
+	 *            Thrown if the return value of the GET_FOCUS_OFFSET BSS command is false.
+	 * @see #ioi
+	 * @see #status
+	 * @see IOI#sendBSSCommand
+	 * @see IOIStatus#setBSSFocusOffset
+	 * @see ngat.message.INST_BSS.GET_FOCUS_OFFSET
+	 * @see ngat.message.INST_BSS.GET_FOCUS_OFFSET_DONE
+	 * @see ngat.message.INST_BSS.GET_FOCUS_OFFSET_DONE#getFocusOffset
+	 */
+	protected void setFocusOffset(String configId) throws Exception
+	{
+		GET_FOCUS_OFFSET getFocusOffset = null;
+		INST_TO_BSS_DONE instToBSSDone = null;
+		GET_FOCUS_OFFSET_DONE getFocusOffsetDone = null;
+		OFFSET_FOCUS_CONTROL offsetFocusControlCommand = null;
+		INST_TO_ISS_DONE instToISSDone = null;
+		String instrumentName = null;
+		float focusOffset = 0.0f;
+		boolean bssUse;
+
+		ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+":setFocusOffset:Started.");
+	// get instrument name to use for GET_FOCUS_OFFSET/OFFSET_FOCUS_CONTROL
+		instrumentName = status.getProperty("ioi.bss.instrument_name");
+		focusOffset = 0.0f;
+	// retrieve master telescope focus offset
+		focusOffset += status.getPropertyFloat("ioi.focus.offset");
+		ioi.log(Logging.VERBOSITY_VERY_TERSE,"setFocusOffset:telescope offset:"+focusOffset+".");
+	// get Beam Steering System Offset
+		bssUse = status.getPropertyBoolean("ioi.net.bss.use");
+		if(bssUse)
+		{
+			getFocusOffset = new GET_FOCUS_OFFSET(configId);
+			getFocusOffset.setInstrumentName(instrumentName);
+			ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+				":setFocusOffset:Getting BSS focus offset for "+instrumentName+".");
+			instToBSSDone = ioi.sendBSSCommand(getFocusOffset,serverConnectionThread);
+			if(instToBSSDone.getSuccessful() == false)
+			{
+				throw new Exception(this.getClass().getName()+
+						    ":setFocusOffset:BSS GET_FOCUS_OFFSET failed:"+
+						    instrumentName+":"+instToBSSDone.getErrorString());
+			}
+			if((instToBSSDone instanceof GET_FOCUS_OFFSET_DONE) == false)
+			{
+				throw new Exception(this.getClass().getName()+":setFocusOffset:BSS GET_FOCUS_OFFSET("+
+						    instrumentName+
+						    ") did not return instance of GET_FOCUS_OFFSET_DONE:"+
+						    instToBSSDone.getClass().getName());
+			}
+			getFocusOffsetDone = (GET_FOCUS_OFFSET_DONE)instToBSSDone;
+			ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+				":setFocusOffset:BSS focus offset for "+instrumentName+" was "+
+				getFocusOffsetDone.getFocusOffset()+".");
+			focusOffset += getFocusOffsetDone.getFocusOffset();
+			// Cache the BSS focus offset for writing into the FITS headers
+			status.setBSSFocusOffset(getFocusOffsetDone.getFocusOffset());
+		}
+		else
+		{
+			ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+				":setFocusOffset:BSS not in use, faking BSS GET_FOCUS_OFFSET to 0.0.");
+			status.setBSSFocusOffset(0.0f);
+		}
+	// send the overall focusOffset to the ISS using  OFFSET_FOCUS_CONTROL
+		offsetFocusControlCommand = new OFFSET_FOCUS_CONTROL(configId);
+		offsetFocusControlCommand.setInstrumentName(instrumentName);
+		offsetFocusControlCommand.setFocusOffset(focusOffset);
+		ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+":setFocusOffset:Total offset for "+
+			instrumentName+" is "+focusOffset+".");
+		instToISSDone = ioi.sendISSCommand(offsetFocusControlCommand,serverConnectionThread);
+		if(instToISSDone.getSuccessful() == false)
+		{
+			throw new Exception(this.getClass().getName()+":focusOffset failed:"+focusOffset+":"+
+					    instToISSDone.getErrorString());
+		}
+		ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+":setFocusOffset:Finished.");
+	}
 }
 //
 // $Log$
