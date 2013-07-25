@@ -1152,34 +1152,37 @@ public class IOI
 	 * 	if the done was null.
 	 * @see #issAddress
 	 * @see #issPortNumber
-	 * @see #sendISSCommand(INST_TO_ISS,IOITCPServerConnectionThread,boolean)
+	 * @see #sendISSCommand(INST_TO_ISS,IOITCPServerConnectionThread,boolean,boolean)
 	 * @see IOITCPClientConnectionThread
 	 * @see IOITCPServerConnectionThread#getAbortProcessCommand
 	 */
 	public INST_TO_ISS_DONE sendISSCommand(INST_TO_ISS command,IOITCPServerConnectionThread commandThread)
 	{
-		return sendISSCommand(command,commandThread,true);
+		return sendISSCommand(command,commandThread,true,true);
 	}
 
 	/**
-	 * Routine to send a command from the instrument (this application/IOI) to the ISS. The routine
-	 * waits until the command's done message has been returned from the ISS and returns this.
-	 * If checkAbort is set and the commandThread is aborted this also stops waiting for the 
-	 * done message to be returned.
+	 * Routine to send a command from the instrument (this application/IOI) to the ISS. If waitForDone is true,
+	 * the method waits until the command's done message has been returned from the ISS and returns this.
+	 * If checkAbort is set and the commandThread is aborted this stops waiting for the 
+	 * done message to be returned and an error is returned. 
+	 * If waitForDone is false, a fake DONE is created and returned.
 	 * @param command The command to send to the ISS.
 	 * @param commandThread The thread the passed in command (and this method) is running on.
 	 * @param checkAbort A boolean, set to true if we want to check for commandThread aborting.
 	 * 	This should be set to false when the command is being sent to the ISS in response
 	 * 	to an abort occuring.
-	 * @return The done message returned from te ISS, or an error message created by this routine
-	 * 	if the done was null.
+	 * @param waitForDone A boolean. If true we do NOT wait for the spawned ISS command to return a DONE
+	 *        message. This allows us to reduce overheads, for instance when sending OFFSET_RA_DEC commands.
+	 * @return The done message returned from the ISS, a fake DONE if waitForDone is true,
+	 *      or an error message created by this routine if the done was null.
 	 * @see #issAddress
 	 * @see #issPortNumber
 	 * @see IOITCPClientConnectionThread
 	 * @see IOITCPServerConnectionThread#getAbortProcessCommand
 	 */
 	public INST_TO_ISS_DONE sendISSCommand(INST_TO_ISS command,IOITCPServerConnectionThread commandThread,
-		boolean checkAbort)
+					       boolean checkAbort,boolean waitForDone)
 	{
 		IOITCPClientConnectionThread thread = null;
 		INST_TO_ISS_DONE done = null;
@@ -1190,52 +1193,65 @@ public class IOI
 		thread = new IOITCPClientConnectionThread(issAddress,issPortNumber,command,commandThread);
 		thread.setIOI(this);
 		thread.start();
-		finished = false;
-		while(finished == false)
+		if(waitForDone)
 		{
-			try
+			finished = false;
+			while(finished == false)
 			{
-				thread.join(100);// wait 100 millis for the thread to finish
-			}
-			catch(InterruptedException e)
+				try
+				{
+					thread.join(100);// wait 100 millis for the thread to finish
+				}
+				catch(InterruptedException e)
+				{
+					error("run:join interrupted:",e);
+				}
+				// If the thread has finished so has this loop
+				finished = (thread.isAlive() == false);
+				// check if the thread has been aborted, if checkAbort has been set.
+				if(checkAbort)
+				{
+					// If the commandThread has been aborted, stop processing this thread
+					if(commandThread.getAbortProcessCommand())
+						finished = true;
+				}
+			}// end while
+			done = (INST_TO_ISS_DONE)thread.getDone();
+			if(done == null)
 			{
-				error("run:join interrupted:",e);
-			}
-		// If the thread has finished so has this loop
-			finished = (thread.isAlive() == false);
-		// check if the thread has been aborted, if checkAbort has been set.
-			if(checkAbort)
-			{
-			// If the commandThread has been aborted, stop processing this thread
+				// one reason the done is null is if we escaped from the loop
+				// because the IO:I server thread was aborted.
 				if(commandThread.getAbortProcessCommand())
-					finished = true;
-			}
+				{
+					done = new INST_TO_ISS_DONE(command.getId());
+					error(this.getClass().getName()+":sendISSCommand:"+
+					      command.getClass().getName()+":Server thread Aborted");
+					done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1);
+					done.setErrorString("sendISSCommand:Server thread Aborted:"+
+							    command.getClass().getName());
+					done.setSuccessful(false);		
+				}
+				else // a communication failure occured
+				{
+					done = new INST_TO_ISS_DONE(command.getId());
+					error(this.getClass().getName()+":sendISSCommand:"+
+					      command.getClass().getName()+":Getting Done failed");
+					done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2);
+					done.setErrorString("sendISSCommand:Getting Done failed:"+
+							    command.getClass().getName());
+					done.setSuccessful(false);
+				}
+			}// end if done is null
 		}
-		done = (INST_TO_ISS_DONE)thread.getDone();
-		if(done == null)
+		else // waitForDone is false, return a fake DONE
 		{
-			// one reason the done is null is if we escaped from the loop
-			// because the IO:I server thread was aborted.
-			if(commandThread.getAbortProcessCommand())
-			{
-				done = new INST_TO_ISS_DONE(command.getId());
-				error(this.getClass().getName()+":sendISSCommand:"+
-					command.getClass().getName()+":Server thread Aborted");
-				done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1);
-				done.setErrorString("sendISSCommand:Server thread Aborted:"+
-					command.getClass().getName());
-				done.setSuccessful(false);		
-			}
-			else // a communication failure occured
-			{
-				done = new INST_TO_ISS_DONE(command.getId());
-				error(this.getClass().getName()+":sendISSCommand:"+
-					command.getClass().getName()+":Getting Done failed");
-				done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2);
-				done.setErrorString("sendISSCommand:Getting Done failed:"+
-					command.getClass().getName());
-				done.setSuccessful(false);
-			}
+			done = new INST_TO_ISS_DONE(command.getId());
+			log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":sendISSCommand:"+
+			      command.getClass().getName()+":Wait for done was false, faking a successful DONE.");
+			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_NO_ERROR);
+			done.setErrorString("sendISSCommand:Wait for Done was false, faking successful DONE for:"+
+					    command.getClass().getName());
+			done.setSuccessful(true);
 		}
 		log(Logging.VERBOSITY_TERSE,
 			"Done:"+done.getClass().getName()+":successful:"+done.getSuccessful()+

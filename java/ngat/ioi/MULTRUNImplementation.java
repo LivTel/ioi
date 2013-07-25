@@ -121,6 +121,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		int index,bFS,nReset,nRead,nGroup,nDrop,groupExecutionTime;
 		boolean retval = false;
 
+		ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+			":processCommand:Starting MULTRUN with exposure length "+multRunCommand.getExposureTime()+
+			" ms and number of exposures "+multRunCommand.getNumberExposures()+".");
 		if(testAbort(multRunCommand,multRunDone) == true)
 			return multRunDone;
 	// setup exposure status.
@@ -156,6 +159,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		{
 			try
 			{
+				ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					":processCommand:Configuring Fowler sampling mode.");
 				nReset = status.getPropertyInteger("ioi.config.FOWLER.nreset");
 				nRead = status.getPropertyInteger("ioi.config.FOWLER.nread");
 				setFSParamCommand = new SetFSParamCommand();
@@ -189,6 +194,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		{
 			try
 			{
+				ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					":processCommand:Configuring read-up-the-ramp mode.");
 				nReset = status.getPropertyInteger("ioi.config.UP_THE_RAMP.nreset");
 				nRead = status.getPropertyInteger("ioi.config.UP_THE_RAMP.nread");
 				nDrop = status.getPropertyInteger("ioi.config.UP_THE_RAMP.ndrop");
@@ -227,9 +234,13 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		reduceFilenameList = new Vector();
 		while(retval&&(index < multRunCommand.getNumberExposures()))
 		{
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Starting exposure "+index+".");
 		// initialise list of FITS filenames for this frame
 			filenameList = new Vector();
 		// RA/Dec Offset for sky dithering.
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Offseting telescope.");
 			if(offsetTelescope(multRunCommand,multRunDone,index) == false)
 			{
 				//moveFilterToBlank(multRunCommand,multRunDone);
@@ -237,6 +248,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				return multRunDone;
 			}
 		// get fits headers
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Retrieving FITS headers.");
 			clearFitsHeaders();
 			if(setFitsHeaders(multRunCommand,multRunDone,obsType,
 				multRunCommand.getExposureTime(),multRunCommand.getNumberExposures()) == false)
@@ -275,6 +288,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		// do exposure.
 			try
 			{
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Acquiring ramp.");
 				acquireRampCommand = new AcquireRampCommand();
 				acquireRampCommand.setTelnetConnection(idlTelnetConnection);
 				acquireRampCommand.sendCommand();
@@ -308,6 +323,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			// find the data just acquired
 			try
 			{
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Finding ramp data.");
 				directory = findRampData(acquireRampCommandCallTime);
 			}
 			catch(Exception e)
@@ -322,9 +339,13 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				multRunDone.setSuccessful(false);
 				return multRunDone;
 			}
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Ramp data found in directory:"+directory);
 			// for now, the returned filename is set to the directory containing the result data set.
 			filename = directory;
 		// send acknowledge to say frame is completed.
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Sending ACK.");
 			multRunAck = new MULTRUN_ACK(command.getId());
 			multRunAck.setTimeToComplete(multRunCommand.getExposureTime()+
 						     serverConnectionThread.getDefaultAcknowledgeTime());
@@ -364,6 +385,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		}
 		//moveFilterToBlank(multRunCommand,multRunDone);
 	// reset telescope offsets
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":processCommand:Reseting telescope offset.");
 		if(resetTelescopeOffset(multRunCommand,multRunDone) == false)
 			return multRunDone;
 		index = 0;
@@ -371,6 +394,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	// call pipeline to process data and get results
 		if(multRunCommand.getPipelineProcess())
 		{
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Data pipelining.");
 			while(retval&&(index < multRunCommand.getNumberExposures()))
 			{
 				filename = (String)reduceFilenameList.get(index);
@@ -432,6 +457,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		multRunDone.setErrorString("");
 		multRunDone.setSuccessful(true);
 	// return done object.
+		ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			":processCommand:MULTRUN command completed.");
 		return multRunDone;
 	}
 
@@ -449,14 +476,18 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	{
 		OFFSET_RA_DEC offsetRaDecCommand = null;
 		INST_TO_ISS_DONE instToISSDone = null;
-		int raDecOffsetCount,raDecOffsetIndex;
+		int raDecOffsetCount,raDecOffsetIndex,offsetSleepTime;
 		float raOffset,decOffset;
-		boolean doRADecOffset;
+		boolean doRADecOffset,waitForOffsetToComplete;
 
 	 // get configuration
+		ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			":offsetTelescope:Starting, retrieveing config.");
 		try
 		{
 			doRADecOffset = status.getPropertyBoolean("ioi.multrun.offset.enable");
+			waitForOffsetToComplete = status.getPropertyBoolean("ioi.multrun.offset.wait_for_complete");
+			offsetSleepTime =  status.getPropertyInteger("ioi.multrun.offset.wait_sleep_time");
 			raDecOffsetCount = status.getPropertyInteger("ioi.multrun.offset.count");
 			raDecOffsetIndex = index % raDecOffsetCount;
 			raOffset = status.getPropertyFloat("ioi.multrun.offset."+raDecOffsetIndex+".ra");
@@ -473,12 +504,17 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		}
 		if(doRADecOffset)
 		{
+			ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+				":offsetTelescope:We are going to physically move the telescope ("+
+				raOffset+","+decOffset+").");
 			// tell telescope of offset RA and DEC
 			offsetRaDecCommand = new OFFSET_RA_DEC(multRunCommand.getId());
 			offsetRaDecCommand.setRaOffset(raOffset);
 			offsetRaDecCommand.setDecOffset(decOffset);
-			instToISSDone = ioi.sendISSCommand(offsetRaDecCommand,serverConnectionThread);
-			if(instToISSDone.getSuccessful() == false)
+			instToISSDone = ioi.sendISSCommand(offsetRaDecCommand,serverConnectionThread,true,
+							   waitForOffsetToComplete);
+			// if we are waiting for the offset to complete, and it returns an error, return an error.
+			if(waitForOffsetToComplete && (instToISSDone.getSuccessful() == false))
 			{
 				String errorString = null;
 				
@@ -490,7 +526,37 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				multRunDone.setSuccessful(false);
 				return false;
 			}
+			// if we have not waited for the offset to complete, and we are supposed to be waiting a
+			// configured time for the offset to have been done, wait a bit.
+			if(!waitForOffsetToComplete)
+			{
+				ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					":offsetTelescope:We have sent the telescope offset, "+
+					"but have NOT waited for the DONE.");
+				if(offsetSleepTime > 0)
+				{
+					ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+						":offsetTelescope:We have sent the telescope offset, "+
+						"but have NOT waited for the DONE, so are waiting here for "+
+						offsetSleepTime+" ms.");
+					try
+					{
+						Thread.sleep(offsetSleepTime);
+					}
+					catch(InterruptedException e)
+					{
+						ioi.error(this.getClass().getName()+
+							  ":offsetTelescope:Offset sleep time was interrupted.",e);
+					}
+				}
+			}
 		}// end if
+		else
+		{
+			ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+				":offsetTelescope:Offsets NOT enabled:"+
+				"We are NOT going to physically move the telescope ("+raOffset+","+decOffset+").");
+		}
 		return true;
 	}
 
