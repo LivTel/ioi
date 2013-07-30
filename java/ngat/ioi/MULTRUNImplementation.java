@@ -139,12 +139,12 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		else
 			obsType = FitsHeaderDefaults.OBSTYPE_VALUE_EXPOSURE;
 		// configure the array 
-		idlTelnetConnection = ioi.getIDLTelnetConnection();
 		exposureLengthSeconds = ((double)(multRunCommand.getExposureTime())/1000.0);
 		// Find out which sampling mode the array is using
 		try
 		{
-			bFS = getFSMode();
+			idlTelnetConnection = ioi.getIDLTelnetConnection();
+			bFS = getFSMode(idlTelnetConnection);
 		}
 		catch(Exception e)
 		{
@@ -172,6 +172,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					ioi.error(this.getClass().getName()+":processCommand:SetFSParam failed:"+
 						  setFSParamCommand.getReplyErrorCode()+":"+
 						  setFSParamCommand.getReplyErrorString());
+					idlTelnetConnection.close();
 					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1204);
 					multRunDone.setErrorString("processCommand:SetFSParam failed:"+
 								   setFSParamCommand.getReplyErrorCode()+":"+
@@ -184,6 +185,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			{
 				ioi.error(this.getClass().getName()+
 					  ":processCommand:SetFSParam failed:"+command,e);
+				//idlTelnetConnection.close();
 				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1207);
 				multRunDone.setErrorString(e.toString());
 				multRunDone.setSuccessful(false);
@@ -210,6 +212,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					ioi.error(this.getClass().getName()+":processCommand:SetRampParam failed:"+
 						  setRampParamCommand.getReplyErrorCode()+":"+
 						  setRampParamCommand.getReplyErrorString());
+					idlTelnetConnection.close();
 					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1205);
 					multRunDone.setErrorString("processCommand:SetRampParam failed:"+
 								   setRampParamCommand.getReplyErrorCode()+":"+
@@ -222,6 +225,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			{
 				ioi.error(this.getClass().getName()+
 					  ":processCommand:SetRampParam failed:"+command,e);
+				//idlTelnetConnection.close();
 				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1208);
 				multRunDone.setErrorString(e.toString());
 				multRunDone.setSuccessful(false);
@@ -245,6 +249,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			{
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
+				//idlTelnetConnection.close();
 				return multRunDone;
 			}
 		// get fits headers
@@ -256,30 +261,35 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			{
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
+				//idlTelnetConnection.close();
 				return multRunDone;
 			}
 			if(getFitsHeadersFromISS(multRunCommand,multRunDone) == false)
 			{
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
+				//idlTelnetConnection.close();
 				return multRunDone;
 			}
 			if(testAbort(multRunCommand,multRunDone) == true)
 			{
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
+				//idlTelnetConnection.close();
 				return multRunDone;
 			}
 			if(getFitsHeadersFromBSS(multRunCommand,multRunDone) == false)
 			{
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
+				//idlTelnetConnection.close();
 				return multRunDone;
 			}
 			if(testAbort(multRunCommand,multRunDone) == true)
 			{
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
+				//idlTelnetConnection.close();
 				return multRunDone;
 			}
 			// get a timestamp before taking an exposure
@@ -300,6 +310,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 						  acquireRampCommand.getReplyErrorString());
 					//moveFilterToBlank(multRunCommand,multRunDone);
 					resetTelescopeOffset(multRunCommand,multRunDone);
+					//idlTelnetConnection.close();
 					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1209);
 					multRunDone.setErrorString("processCommand:AcquireRamp failed:"+
 								   acquireRampCommand.getReplyErrorCode()+":"+
@@ -315,6 +326,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					":processCommand:AcquireRampCommand failed:"+command+":"+e.toString());
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
+				//idlTelnetConnection.close();
 				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1200);
 				multRunDone.setErrorString(e.toString());
 				multRunDone.setSuccessful(false);
@@ -325,7 +337,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			{
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":processCommand:Finding ramp data.");
-				directory = findRampData(acquireRampCommandCallTime);
+				directory = findRampData(idlTelnetConnection,acquireRampCommandCallTime);
 			}
 			catch(Exception e)
 			{
@@ -334,6 +346,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					":processCommand:findRampData failed:"+command+":"+e.toString());
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
+				//idlTelnetConnection.close();
 				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1201);
 				multRunDone.setErrorString(e.toString());
 				multRunDone.setSuccessful(false);
@@ -361,6 +374,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					":processCommand:sendAcknowledge:"+command+":"+e.toString());
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
+				//idlTelnetConnection.close();
 				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1202);
 				multRunDone.setErrorString(e.toString());
 				multRunDone.setSuccessful(false);
@@ -381,6 +395,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		{
 			//moveFilterToBlank(multRunCommand,multRunDone);
 			resetTelescopeOffset(multRunCommand,multRunDone);
+			//idlTelnetConnection.close();
 			return multRunDone;
 		}
 		//moveFilterToBlank(multRunCommand,multRunDone);
@@ -389,6 +404,20 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			":processCommand:Reseting telescope offset.");
 		if(resetTelescopeOffset(multRunCommand,multRunDone) == false)
 			return multRunDone;
+		try
+		{
+			idlTelnetConnection.close();
+		}
+		catch(Exception e)
+		{
+			ioi.error(this.getClass().getName()+
+				  ":processCommand:IDL Socket Server Telnet Connection close failed:",e);
+			multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1214);
+			multRunDone.setErrorString("processCommand:IDL Socket Server Telnet Connection close failed:"+
+						   e);
+			multRunDone.setSuccessful(false);
+			return multRunDone;
+		}
 		index = 0;
 		retval = true;
 	// call pipeline to process data and get results

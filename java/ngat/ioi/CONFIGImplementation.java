@@ -177,6 +177,22 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 			configDone.setSuccessful(false);
 			return configDone;
 		}
+		finally
+		{
+			try
+			{
+				idlTelnetConnection.close();
+			}
+			catch(Exception e)
+			{
+				ioi.error(this.getClass().getName()+":processCommand:"+command+
+					  ":Closing IDL Socket Server Telnet Connection failed:",e);
+				configDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+808);
+				configDone.setErrorString("Closing IDL Socket Server Telnet Connection failed:"+e);
+				configDone.setSuccessful(false);
+				return configDone;
+			}
+		}
 	// send focus offset 
 		try
 		{

@@ -249,6 +249,18 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			ioi.error(this.getClass().getName()+":getIntermediateStatus:"+
 			      "GetConfig command failed:",e);
 		}
+		finally
+		{
+			try
+			{
+				idlTelnetConnection.close();
+			}
+			catch(Exception e)
+			{
+				ioi.error(this.getClass().getName()+":getIntermediateStatus:"+
+					  "Closing IDL Socket Server Telnet Connection failed:",e);
+			}
+		}
 		if(getConfigCommand.getReplyErrorCode() != 0)
 		{
 			ioi.error(this.getClass().getName()+":getIntermediateStatus:GetConfig failed:"+

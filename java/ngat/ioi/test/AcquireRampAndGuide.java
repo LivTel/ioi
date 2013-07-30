@@ -217,7 +217,7 @@ public class AcquireRampAndGuide
 	}
 
 	/**
-	 * Method to set the root directory, under which the FITS images from ACquireRamp are stored.
+	 * Method to set the root directory, under which the FITS images from AcquireRamp are stored.
 	 * @param  s The root directory to use as a String.
 	 * @see #rootDirectory
 	 */

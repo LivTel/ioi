@@ -75,10 +75,11 @@ public class HardwareImplementation extends CommandImplementation implements JMS
 	/**
 	 * Return what sampling mode the array (IDL socket server layer) is currently configured to use.
 	 * This is done by sending a GetConfig command to the IDL socket server and extracting the bFS config.
+	 * @param idlTelnetConnection The IDL Socket Server Telnet Connection to send the GetConfig command over.
+	 *        The Telnet Connection must have been initialised and opened.
 	 * @return An integer. 1 means 'Fowler sampling mode' and 0 'Read Up The Ramp mode'.
 	 * @exception Exception Thrown if the GetConfig fails, returns an error, or the bFS property is not present.
 	 * @see #ioi
-	 * @see IOI#getIDLTelnetConnection
 	 * @see ngat.ioi.command.GetConfigCommand
 	 * @see ngat.ioi.command.GetConfigCommand#setTelnetConnection
 	 * @see ngat.ioi.command.GetConfigCommand#sendCommand
@@ -86,9 +87,8 @@ public class HardwareImplementation extends CommandImplementation implements JMS
 	 * @see ngat.ioi.command.GetConfigCommand#getReplyErrorString
 	 * @see ngat.ioi.command.GetConfigCommand#getValueInteger
 	 */
-	protected int getFSMode() throws Exception
+	protected int getFSMode(TelnetConnection idlTelnetConnection) throws Exception
 	{
-		TelnetConnection idlTelnetConnection = null;
 		GetConfigCommand getConfigCommand = null;
 		int bFS;
 
@@ -96,7 +96,6 @@ public class HardwareImplementation extends CommandImplementation implements JMS
 			   ":getFSMode:started.");
 		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 			   ":getFSMode:Calling GetConfig.");
-		idlTelnetConnection = ioi.getIDLTelnetConnection();
 		getConfigCommand = new GetConfigCommand();
 		getConfigCommand.setTelnetConnection(idlTelnetConnection);
 		getConfigCommand.sendCommand();
