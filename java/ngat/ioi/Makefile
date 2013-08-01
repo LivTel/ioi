@@ -15,8 +15,8 @@ MAIN_SRCS 	= IOIConstants.java \
 IMPL_SRCS = $(BASE_IMPL_SRCS) $(CALIBRATE_IMPL_SRCS) $(EXPOSE_IMPL_SRCS) $(INTERRUPT_IMPL_SRCS) $(SETUP_IMPL_SRCS)
 BASE_IMPL_SRCS		= CommandImplementation.java JMSCommandImplementation.java UnknownCommandImplementation.java \
 			HardwareImplementation.java FITSImplementation.java
-CALIBRATE_IMPL_SRCS 	= 
-#BIASImplementation.java DARKImplementation.java 
+CALIBRATE_IMPL_SRCS 	= BIASImplementation.java
+# DARKImplementation.java 
 EXPOSE_IMPL_SRCS	= EXPOSEImplementation.java MULTRUNImplementation.java
 #TIMED_MULTRUNATImplementation.java
 INTERRUPT_IMPL_SRCS 	= INTERRUPTImplementation.java GET_STATUSImplementation.java REBOOTImplementation.java \
