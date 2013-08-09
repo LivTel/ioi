@@ -172,7 +172,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		catch(Exception e)
 		{
 			ioi.error(this.getClass().getName()+":processCommand:"+command+":SetFSMode failed:",e);
-			configDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+802);
+			configDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+803);
 			configDone.setErrorString("SetFSMode failed:"+e.toString());
 			configDone.setSuccessful(false);
 			return configDone;

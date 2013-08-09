@@ -125,7 +125,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		{
 			mirrorFoldPosition = 0;
 			ioi.error(this.getClass().getName()+":moveFold:"+command.getClass().getName(),e);
-			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1201);
+			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+300);
 			done.setErrorString("moveFold:"+e);
 			done.setSuccessful(false);
 			return false;
@@ -136,7 +136,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		{
 			ioi.error(this.getClass().getName()+":moveFold:"+
 				command.getClass().getName()+":"+instToISSDone.getErrorString());
-			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1202);
+			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+301);
 			done.setErrorString(instToISSDone.getErrorString());
 			done.setSuccessful(false);		
 			return false;
@@ -373,6 +373,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * 	error occurs the relevant fields are filled in with the error.
 	 * @return The routine returns a boolean to indicate whether the operation was completed
 	 *  	successfully.
+	 * @see #ioiFitsHeader
+	 * @see #DEFAULT_ORDER_NUMBER_OFFSET
 	 * @see IOI#sendISSCommand
 	 * @see IOI#getStatus
 	 * @see IOIStatus#getPropertyInteger
@@ -385,6 +387,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		FitsHeaderCardImage cardImage = null;
 		Object value = null;
 		Vector list = null;
+		int orderNumberOffset;
 
 		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 			":getFitsHeadersFromISS:Started.");
@@ -394,7 +397,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		{
 			ioi.error(this.getClass().getName()+":getFitsHeadersFromISS:"+
 				     command.getClass().getName()+":"+instToISSDone.getErrorString());
-			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1205);
+			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+302);
 			done.setErrorString(instToISSDone.getErrorString());
 			done.setSuccessful(false);
 			return false;
@@ -403,7 +406,20 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		getFitsDone = (ngat.message.ISS_INST.GET_FITS_DONE)instToISSDone;
 	// extract specific FITS headers 
 		list = getFitsDone.getFitsHeader();
-		// do something with list, which is a Vector containing FitsHeaderCardImage objects.
+		// get an ordernumber offset
+		try
+		{
+			orderNumberOffset = status.getPropertyInteger("ioi.get_fits.iss.order_number_offset");
+		}
+		catch(NumberFormatException e)
+		{
+			orderNumberOffset = DEFAULT_ORDER_NUMBER_OFFSET;
+			ioi.error(this.getClass().getName()+
+				  ":getFitsHeadersFromISS:Getting order number offset failed.",e);
+		}
+		// Add the list, which is a Vector containing FitsHeaderCardImage objects, 
+		// to ioiFitsHeader
+		ioiFitsHeader.addKeywordValueList(list,orderNumberOffset);
 		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 			   ":getFitsHeadersFromISS:finished.");
 		return true;
@@ -419,6 +435,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * 	error occurs the relevant fields are filled in with the error.
 	 * @return The routine returns a boolean to indicate whether the operation was completed
 	 *  	successfully.
+	 * @see #ioiFitsHeader
+	 * @see #DEFAULT_ORDER_NUMBER_OFFSET
 	 * @see IOI#sendBSSCommand
 	 * @see IOI#getStatus
 	 * @see IOIStatus#getPropertyInteger
@@ -444,8 +462,20 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		{
 			ioi.error(this.getClass().getName()+":getFitsHeadersFromBSS:"+
 				  command.getClass().getName()+":"+instToBSSDone.getErrorString());
-			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1208);
+			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+303);
 			done.setErrorString(instToBSSDone.getErrorString());
+			done.setSuccessful(false);
+			return false;
+		}
+		if((instToBSSDone instanceof ngat.message.INST_BSS.GET_FITS_DONE) == false)
+		{
+			ioi.error(this.getClass().getName()+":getFitsHeadersFromBSS:"+
+				  command.getClass().getName()+":DONE was not instance of GET_FITS_DONE:"+
+				  instToBSSDone.getClass().getName());
+			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+305);
+			done.setErrorString("getFitsHeadersFromBSS:"+command.getClass().getName()+
+					    ":DONE was not instance of GET_FITS_DONE:"+
+					    instToBSSDone.getClass().getName());
 			done.setSuccessful(false);
 			return false;
 		}
@@ -453,8 +483,19 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		getFitsDone = (ngat.message.INST_BSS.GET_FITS_DONE)instToBSSDone;
 	// extract specific FITS headers and add them to the C layers list
 		list = getFitsDone.getFitsHeader();
+		// get the order number offset
+		try
+		{
+			orderNumberOffset = status.getPropertyInteger("ioi.get_fits.bss.order_number_offset");
+		}
+		catch(NumberFormatException e)
+		{
+			orderNumberOffset = DEFAULT_ORDER_NUMBER_OFFSET;
+			ioi.error(this.getClass().getName()+
+				  ":getFitsHeadersFromBSS:Getting order number offset failed.",e);
+		}
 		// do something with list, which is a Vector containing FitsHeaderCardImage objects.
-
+		ioiFitsHeader.addKeywordValueList(list,orderNumberOffset);
 		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 			   ":getFitsHeadersFromBSS:finished.");
 		return true;
@@ -594,6 +635,108 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":findRampData:finished and returning directory:"+directoryString+".");
 		return directoryString;
+	}
+
+	/**
+	 * Given a directory, find all the FITS images in it, and it's subdirectories.
+	 * @param directoryString A string containing the root directory to start the search at.
+	 * @return A List, containing File object instances, where each item represents a FITS image
+	 *        within the directory or it's subdirectories.
+	 * @exception IllegalArgumentException Thrown if directoryString is not a string 
+	 *            representing a valid directory.
+	 * @exception Exception Thrown if listing a directory returns null.
+	 */
+	public List findFITSFilesInDirectory(String directoryString) throws Exception, IllegalArgumentException
+	{
+		File directoryFile = null;
+		List directoryList = new Vector();
+		File fileList[];
+		List fitsFileList = new Vector();
+
+		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+			   ":findFITSFilesInDirectory:Starting from directory:"+directoryString+".");
+		directoryFile = new File(directoryString);
+		if(directoryFile.isDirectory() == false)
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+":findFITSFilesInDirectory:"+
+							   directoryString+" not a directory.");
+		}
+		// add the top directory to the list of directories to search
+		directoryList.add(directoryFile);
+		// iterate over the directories to search
+		while(directoryList.size() > 0)
+		{
+			// get the directory from the firectory list, and then remove it from the list
+			directoryFile = (File)(directoryList.get(0));
+			directoryList.remove(directoryFile);
+			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				":findFITSFilesInDirectory:Currently listing directory:"+directoryFile+".");
+			// get a list of files in that directory.
+			fileList = directoryFile.listFiles();
+			if(fileList == null)
+			{
+				throw new Exception(this.getClass().getName()+":findFITSFilesInDirectory:"+
+						    "Directory list was null:"+directoryFile);
+			}
+			for(int i = 0; i < fileList.length; i++)
+			{
+				if(fileList[i].isDirectory())
+				{
+					// add the top directory to the list of directories to search
+					ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+						":findFITSFilesInDirectory:Adding directory:"+fileList[i]+
+						" to search directory list.");
+					directoryList.add(fileList[i]);
+				}
+				else
+				{
+					// is it a fits file?
+					if(fileList[i].toString().endsWith(".fits"))
+					{
+						ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+							":findFITSFilesInDirectory:Adding FITS image:"+fileList[i]+
+							" to results list.");
+						fitsFileList.add(fileList[i]);	
+					}
+					else
+					{
+						ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+							":findFITSFilesInDirectory:File:"+fileList[i]+
+							" not a FITS image.");
+					}
+				}
+			}// end for over files in that directory
+		}// end while directories in the list
+		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+			":findFITSFilesInDirectory:directory:"+directoryString+" contained "+fitsFileList.size()+
+			" FITS images.");
+		return fitsFileList;
+	}
+
+	/**
+	 * Method to add the FITS headers contained in ioiFitsHeader to the specified List of FITS images.
+	 * @param fitsImageList A List, containing File object instances, where each item represents a FITS image
+	 *        within the directory or it's subdirectories.
+	 * @exception FitsHeaderException Thrown if the writeFitsHeader method fails.
+	 * @see #ioi
+	 * @see #ioiFitsHeader
+	 */
+	public void addFitsHeadersToFitsImages(List fitsImageList) throws FitsHeaderException
+	{
+		File fitsFile = null;
+
+		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+			":addFitsHeadersToFitsImages:Adding "+ioiFitsHeader.getKeywordValueCount()+" headers to "+
+			fitsImageList.size()+" FITS images.");
+		for(int fitsImageIndex=0;fitsImageIndex < fitsImageList.size(); fitsImageIndex++)
+		{
+			fitsFile = (File)(fitsImageList.get(fitsImageIndex));
+			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				":addFitsHeadersToFitsImages:Adding headers to "+fitsFile.toString());
+			ioiFitsHeader.writeFitsHeader(fitsFile.toString());
+		}
+		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+			":addFitsHeadersToFitsImages:Finished.");
 	}
 
 	/**

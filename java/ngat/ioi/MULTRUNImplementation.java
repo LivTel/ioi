@@ -111,8 +111,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		SetFSParamCommand setFSParamCommand = null;
 		SetRampParamCommand setRampParamCommand = null;
 		AcquireRampCommand acquireRampCommand = null;
-		Vector filenameList = null;
 		Vector reduceFilenameList = null;
+		List fitsFileList = null;
 		String obsType = null;
 		String directory = null;
 		String filename = null;
@@ -240,8 +240,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		{
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Starting exposure "+index+".");
-		// initialise list of FITS filenames for this frame
-			filenameList = new Vector();
 		// RA/Dec Offset for sky dithering.
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Offseting telescope.");
@@ -338,6 +336,12 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":processCommand:Finding ramp data.");
 				directory = findRampData(idlTelnetConnection,acquireRampCommandCallTime);
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Listing FITS images in Ramp Data directory "+directory+".");
+				fitsFileList = findFITSFilesInDirectory(directory);
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Adding FITS headers to "+fitsFileList.size()+" FITS images.");
+				addFitsHeadersToFitsImages(fitsFileList);
 			}
 			catch(Exception e)
 			{
@@ -356,7 +360,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				":processCommand:Ramp data found in directory:"+directory);
 			// for now, the returned filename is set to the directory containing the result data set.
 			filename = directory;
-		// send acknowledge to say frame is completed.
+		// send acknowledge to say frames are completed.
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Sending ACK.");
 			multRunAck = new MULTRUN_ACK(command.getId());
@@ -382,7 +386,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			}
 			status.setExposureNumber(index+1);
 		// add filename to list for data pipeline processing.
-			reduceFilenameList.addAll(filenameList);
+			reduceFilenameList.addAll(fitsFileList);
 		// test whether an abort has occured.
 			if(testAbort(multRunCommand,multRunDone) == true)
 			{
@@ -425,7 +429,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		{
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Data pipelining.");
-			while(retval&&(index < multRunCommand.getNumberExposures()))
+			// diddly this is wrong
+			while(retval&&(index < reduceFilenameList.size()))
 			{
 				filename = (String)reduceFilenameList.get(index);
 			// do reduction.
