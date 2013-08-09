@@ -682,8 +682,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			{
 				if(fileList[i].isDirectory())
 				{
-					// add the top directory to the list of directories to search
-					ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+					// add the directory to the list of directories to search
+					ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 						":findFITSFilesInDirectory:Adding directory:"+fileList[i]+
 						" to search directory list.");
 					directoryList.add(fileList[i]);
@@ -700,7 +700,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 					}
 					else
 					{
-						ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+						ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 							":findFITSFilesInDirectory:File:"+fileList[i]+
 							" not a FITS image.");
 					}
@@ -731,7 +731,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		for(int fitsImageIndex=0;fitsImageIndex < fitsImageList.size(); fitsImageIndex++)
 		{
 			fitsFile = (File)(fitsImageList.get(fitsImageIndex));
-			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+			ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 				":addFitsHeadersToFitsImages:Adding headers to "+fitsFile.toString());
 			ioiFitsHeader.writeFitsHeader(fitsFile.toString());
 		}
