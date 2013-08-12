@@ -59,6 +59,11 @@ public class IOI
 	 */
 	private IOIStatus status = null;
 	/**
+	 * FITS Filename object to generate unique fits filenames according to ISS rules.
+	 * This will be used only if we are renaming IDL socket server FITS filenames to the LT standard.
+	 */
+	private FitsFilename fitsFilename = null;
+	/**
 	 * The only instance of the ngat.fits.FitsHeader class - used to interface with some Java JNI routines 
 	 * to write FITS headers.
 	 */
@@ -152,6 +157,7 @@ public class IOI
 	 * @see #dprtAddress
 	 * @see #bssUse
 	 * @see #tempControl
+	 * @see #fitsFilename
 	 * @see ngat.ioi.IOIStatus
 	 * @see ngat.ioi.IOIStatus#load
 	 * @see ngat.ioi.IOIStatus#getPropertyInteger
@@ -163,6 +169,7 @@ public class IOI
 		NumberFormatException,Exception
 	{
 		int time;
+		boolean fitsFilenameRename;
 
 	// create status object and load ioi properties into it
 		status = new IOIStatus();
@@ -186,6 +193,15 @@ public class IOI
 		tempControl = new TemperatureController();
 	// initialise sub-system loggers, after creating status, hardware control objects
 		setLogLevel(logLevel);
+	// create the fits filename object, if we are going to rename FITS images
+		fitsFilenameRename = status.getPropertyBoolean("ioi.file.fits.rename");
+		if(fitsFilenameRename)
+		{
+			fitsFilename = new FitsFilename();
+			fitsFilename.setInstrumentCode(status.getProperty("ioi.file.fits.instrument_code"));
+			fitsFilename.setDirectory(status.getProperty("ioi.file.fits.directory"));
+			fitsFilename.initialise();
+		}
 	// Create instance of the FITS header JNI library.
 		libngatfits = new FitsHeader();
 	// Create instance of FITS header defaults
@@ -631,6 +647,7 @@ public class IOI
 	 * This is the re-initialisation routine. This is called on a REDATUM level reboot, and
 	 * does some of the operations in the init routine. It re-loads the IOI configuration
 	 * files, but NOT the network one. 
+	 * It resets the FitsFilename directory and instrument code. 
 	 * It re-initialises default connection response times from properties file.
 	 * The init method must be kept up to date with respect to this method.
 	 * @exception FileNotFoundException Thrown if the property file cannot be found.
@@ -640,10 +657,12 @@ public class IOI
 	 * @see #status
 	 * @see #init
 	 * @see #setLogLevel
+	 * @see #fitsFilename
 	 */
 	public void reInit() throws FileNotFoundException,IOException,NumberFormatException,Exception
 	{
 		int time;
+		boolean fitsFilenameRename;
 
 	// reload properties into the status object
 		try
@@ -662,6 +681,14 @@ public class IOI
 		}
 	// don't change errorLogger to files defined in loaded properties
 	// don't change logLogger to files defined in loaded properties
+	// set the fits filename instrument code/directory, and re-initialise runnum etc.
+		fitsFilenameRename = status.getPropertyBoolean("ioi.file.fits.rename");
+		if(fitsFilenameRename)
+		{
+			fitsFilename.setInstrumentCode(status.getProperty("ioi.file.fits.instrument_code"));
+			fitsFilename.setDirectory(status.getProperty("ioi.file.fits.directory"));
+			fitsFilename.initialise();
+		}
 	// initialise sub-system loggers
 		setLogLevel(logLevel);
 	// initialise default connection response times from properties file
@@ -1039,6 +1066,16 @@ public class IOI
 	public IOITCPServer getServer()
 	{
 		return server;
+	}
+
+	/**
+	 * Get Fits filename generation object instance.
+	 * @return The FitsFilename fitsFilename instance.
+	 * @see #fitsFilename
+	 */
+	public FitsFilename getFitsFilename()
+	{
+		return fitsFilename;
 	}
 
 	/**

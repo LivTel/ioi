@@ -740,6 +740,61 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	}
 
 	/**
+	 * Rename the FITS files  specified into a standard LT multrun in the configured LT FITS filename 
+	 * directory.
+	 * @param fitsImageList A List, containing File object instances, where each item represents a FITS image
+	 *        within the IDL socket server directory structure.
+	 * @param exposureCode A character describing which type of exposure we are doing, 
+	 *        ARC|BIAS|DARK|EXPOSURE|SKY_FLAT|ACQUIRE
+	 * @exception Exception Thrown if the rename operation fails.
+	 * @see IOI#getFitsFilename
+	 * @see ngat.fits.FitsFilename#EXPOSURE_CODE_ARC
+	 * @see ngat.fits.FitsFilename#EXPOSURE_CODE_BIAS
+	 * @see ngat.fits.FitsFilename#EXPOSURE_CODE_DARK
+	 * @see ngat.fits.FitsFilename#EXPOSURE_CODE_EXPOSURE
+	 * @see ngat.fits.FitsFilename#EXPOSURE_CODE_SKY_FLAT
+	 * @see ngat.fits.FitsFilename#EXPOSURE_CODE_ACQUIRE
+	 */
+	public void renameFitsFiles(List fitsImageList,char exposureCode) throws Exception
+	{
+		File fitsFile = null;
+		FitsFilename fitsFilename = null;
+		String newFilename = null;
+		boolean fitsFilenameRename,retval;
+
+		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+			":renameFitsFiles:Renaming "+fitsImageList.size()+" FITS images into standard LT files.");
+		fitsFilenameRename = status.getPropertyBoolean("ioi.file.fits.rename");
+		if(fitsFilenameRename)
+		{
+			// get the FITS filename instance
+			fitsFilename = ioi.getFitsFilename();
+			// New Multrun, set exposure code appropriately
+			fitsFilename.nextMultRunNumber();
+			fitsFilename.setExposureCode(exposureCode);
+			for(int fitsImageIndex=0;fitsImageIndex < fitsImageList.size(); fitsImageIndex++)
+			{
+				fitsFile = (File)(fitsImageList.get(fitsImageIndex));
+				fitsFilename.nextRunNumber();
+				newFilename = fitsFilename.getFilename();
+				retval = fitsFile.renameTo(new File(newFilename));
+				if(retval == false)
+				{
+					throw new Exception(this.getClass().getName()+
+							    ":renameFitsFiles:Renaming "+fitsFile.toString()+
+							    " to "+newFilename+" failed.");
+				}
+			}
+		}
+		else
+		{
+			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				":renameFitsFiles:fitsFilenameRename was false, NOT renaming FITS filenames.");
+		}
+		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":renameFitsFiles:Finished.");
+	}
+
+	/**
 	 * Routine to set the telescope focus offset. The offset sent is based on:
 	 * <ul>
 	 * <li>The instrument's offset with respect to the telescope's natural offset (in the configuration

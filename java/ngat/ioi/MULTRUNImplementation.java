@@ -119,6 +119,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		double exposureLengthSeconds;
 		long acquireRampCommandCallTime;
 		int index,bFS,nReset,nRead,nGroup,nDrop,groupExecutionTime;
+		char exposureCode;
 		boolean retval = false;
 
 		ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
@@ -135,9 +136,15 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		if(testAbort(multRunCommand,multRunDone) == true)
 			return multRunDone;
 		if(multRunCommand.getStandard())
+		{
 			obsType = FitsHeaderDefaults.OBSTYPE_VALUE_STANDARD;
+			exposureCode = FitsFilename.EXPOSURE_CODE_STANDARD;
+		}
 		else
+		{
 			obsType = FitsHeaderDefaults.OBSTYPE_VALUE_EXPOSURE;
+			exposureCode = FitsFilename.EXPOSURE_CODE_EXPOSURE;
+		}
 		// configure the array 
 		exposureLengthSeconds = ((double)(multRunCommand.getExposureTime())/1000.0);
 		// Find out which sampling mode the array is using
@@ -342,6 +349,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":processCommand:Adding FITS headers to "+fitsFileList.size()+" FITS images.");
 				addFitsHeadersToFitsImages(fitsFileList);
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Rename generated FITS images to LT spec (if enabled).");
+				renameFitsFiles(fitsFileList,exposureCode);
 			}
 			catch(Exception e)
 			{
