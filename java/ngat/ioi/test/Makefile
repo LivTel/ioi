@@ -5,7 +5,9 @@ include	../../../../Makefile.common
 
 PACKAGEDIR	= ngat/ioi/test
 BINDIR 		= $(IOI_BIN_HOME)/java/$(PACKAGEDIR)
-SRCS 		= AcquireRampAndGuideCallbackInterface.java AcquireRampAndGuide.java TestAcquireRampAndGuide.java
+SRCS 		= AcquireRampAndGuideCallbackInterface.java AcquireRampAndGuide.java TestAcquireRampAndGuide.java \
+		SicfTCPServer.java SicfTCPServerConnectionThread.java SicfTCPClientConnectionThread.java \
+		SendConfigCommand.java
 OBJS 		= $(SRCS:%.java=$(BINDIR)/%.class)
 
 DIRS 		= 
