@@ -168,6 +168,17 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 			setFSModeCommand.setTelnetConnection(idlTelnetConnection);
 			setFSModeCommand.setCommand(fsMode);
 			setFSModeCommand.sendCommand();
+			if(setFSModeCommand.getReplyErrorCode() != 0)
+			{
+				ioi.error(this.getClass().getName()+":processCommand:"+command+":SetFSMode failed:"+
+					  setFSModeCommand.getReplyErrorCode()+":"+
+					  setFSModeCommand.getReplyErrorString());
+				configDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+804);
+				configDone.setErrorString("SetFSMode failed:"+setFSModeCommand.getReplyErrorCode()+":"+
+					  setFSModeCommand.getReplyErrorString());
+				configDone.setSuccessful(false);
+				return configDone;
+			}
 		}
 		catch(Exception e)
 		{

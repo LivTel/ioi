@@ -1110,12 +1110,19 @@ public class IOI
 		int idlPortNumber = 0;
 		TelnetConnection idlTelnetConnection = null;
 
+		log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":getIDLTelnetConnection:Started.");
 		idlHostname = status.getProperty("ioi.idl.server.hostname");
 		idlPortNumber = status.getPropertyInteger("ioi.idl.server.port_number");
+		log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+		    ":getIDLTelnetConnection:Creating TelnetConnection with hostname "+idlHostname+
+		    " and port number "+idlPortNumber+".");
 		idlTelnetConnection = new TelnetConnection();
 		idlTelnetConnection.setAddress(idlHostname);
 		idlTelnetConnection.setPortNumber(idlPortNumber);
+		log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+		    ":getIDLTelnetConnection:Opening TelnetConnection.");
 		idlTelnetConnection.open();
+		log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":getIDLTelnetConnection:Finished.");
 		return idlTelnetConnection;
 	}
 

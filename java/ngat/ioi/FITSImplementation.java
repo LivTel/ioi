@@ -631,6 +631,10 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 					":findRampData:Not a directory:"+directoryList[i]+".");
 			}
 		}// end for
+		if(smallestDiffFile == null)
+		{
+			throw new Exception(this.getClass().getName()+":findRampData:No suitable directory found.");
+		}
 		directoryString = smallestDiffFile.toString();
 		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":findRampData:finished and returning directory:"+directoryString+".");

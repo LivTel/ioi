@@ -357,12 +357,13 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			{
 				retval = false;
 				ioi.error(this.getClass().getName()+
-					":processCommand:findRampData failed:"+command+":"+e.toString());
+					  ":processCommand:Processing acquired data failed:"+command+":",e);
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				//idlTelnetConnection.close();
 				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1201);
-				multRunDone.setErrorString(e.toString());
+				multRunDone.setErrorString(this.getClass().getName()+
+							   ":processCommand:findRampData failed:"+e.toString());
 				multRunDone.setSuccessful(false);
 				return multRunDone;
 			}
