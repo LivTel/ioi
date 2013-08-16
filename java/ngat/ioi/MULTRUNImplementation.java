@@ -100,6 +100,15 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @see FITSImplementation#getFitsHeadersFromBSS
 	 * @see EXPOSEImplementation#reduceExpose
 	 * @see HardwareImplementation#getFSMode
+	 * @see IOIStatus#setExposureLength
+	 * @see IOIStatus#setExposureCount
+	 * @see IOIStatus#setExposureNumber
+	 * @see IOIStatus#setExposureStartTime
+	 * @see IOIStatus#setCurrentMode
+	 * @see IOIStatus#getCurrentMode
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_IDLE
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_EXPOSING
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_READING_OUT
 	 */
 	public COMMAND_DONE processCommand(COMMAND command)
 	{
@@ -130,6 +139,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	// setup exposure status.
 		status.setExposureCount(multRunCommand.getNumberExposures());
 		status.setExposureNumber(0);
+		status.setExposureLength(multRunCommand.getExposureTime());
 	// move the fold mirror to the correct location
 		if(moveFold(multRunCommand,multRunDone) == false)
 			return multRunDone;
@@ -147,271 +157,311 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		}
 		// configure the array 
 		exposureLengthSeconds = ((double)(multRunCommand.getExposureTime())/1000.0);
-		// Find out which sampling mode the array is using
 		try
 		{
-			idlTelnetConnection = ioi.getIDLTelnetConnection();
-			bFS = getFSMode(idlTelnetConnection);
-		}
-		catch(Exception e)
-		{
-			ioi.error(this.getClass().getName()+
-				  ":processCommand:getFSMode failed:"+command,e);
-			multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1206);
-			multRunDone.setErrorString(e.toString());
-			multRunDone.setSuccessful(false);
-			return multRunDone;
-		}
-		if(bFS == 1)// Fowler sampling mdoe
-		{
+			// Find out which sampling mode the array is using
 			try
 			{
-				ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
-					":processCommand:Configuring Fowler sampling mode.");
-				nReset = status.getPropertyInteger("ioi.config.FOWLER.nreset");
-				nRead = status.getPropertyInteger("ioi.config.FOWLER.nread");
-				setFSParamCommand = new SetFSParamCommand();
-				setFSParamCommand.setTelnetConnection(idlTelnetConnection);
-				setFSParamCommand.setCommand(nReset,nRead,1,exposureLengthSeconds,1);
-				setFSParamCommand.sendCommand();
-				if(setFSParamCommand.getReplyErrorCode() != 0)
-				{
-					ioi.error(this.getClass().getName()+":processCommand:SetFSParam failed:"+
-						  setFSParamCommand.getReplyErrorCode()+":"+
-						  setFSParamCommand.getReplyErrorString());
-					idlTelnetConnection.close();
-					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1204);
-					multRunDone.setErrorString("processCommand:SetFSParam failed:"+
-								   setFSParamCommand.getReplyErrorCode()+":"+
-								   setFSParamCommand.getReplyErrorString());
-					multRunDone.setSuccessful(false);
-					return multRunDone;
-				}
+				idlTelnetConnection = ioi.getIDLTelnetConnection();
 			}
 			catch(Exception e)
 			{
 				ioi.error(this.getClass().getName()+
-					  ":processCommand:SetFSParam failed:"+command,e);
-				//idlTelnetConnection.close();
-				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1207);
+					  ":processCommand:Opening IDL Socket Server Conenction failed:"+command,e);
+				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1215);
 				multRunDone.setErrorString(e.toString());
 				multRunDone.setSuccessful(false);
 				return multRunDone;
 			}
-		}
-		else if(bFS == 0)// Read Up the Ramp mode
-		{
 			try
 			{
-				ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
-					":processCommand:Configuring read-up-the-ramp mode.");
-				nReset = status.getPropertyInteger("ioi.config.UP_THE_RAMP.nreset");
-				nRead = status.getPropertyInteger("ioi.config.UP_THE_RAMP.nread");
-				nDrop = status.getPropertyInteger("ioi.config.UP_THE_RAMP.ndrop");
-				groupExecutionTime = status.getPropertyInteger("ioi.config.UP_THE_RAMP.group_execution_time");
-				setRampParamCommand = new SetRampParamCommand();
-				setRampParamCommand.setTelnetConnection(idlTelnetConnection);
-				nGroup = ((int)(exposureLengthSeconds*1000/groupExecutionTime));
-				setRampParamCommand.setCommand(nReset,nRead,nGroup,nDrop,1);
-				setRampParamCommand.sendCommand();
-				if(setRampParamCommand.getReplyErrorCode() != 0)
-				{
-					ioi.error(this.getClass().getName()+":processCommand:SetRampParam failed:"+
-						  setRampParamCommand.getReplyErrorCode()+":"+
-						  setRampParamCommand.getReplyErrorString());
-					idlTelnetConnection.close();
-					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1205);
-					multRunDone.setErrorString("processCommand:SetRampParam failed:"+
-								   setRampParamCommand.getReplyErrorCode()+":"+
-								   setRampParamCommand.getReplyErrorString());
-					multRunDone.setSuccessful(false);
-					return multRunDone;
-				}
+				bFS = getFSMode(idlTelnetConnection);
 			}
 			catch(Exception e)
 			{
 				ioi.error(this.getClass().getName()+
-					  ":processCommand:SetRampParam failed:"+command,e);
-				//idlTelnetConnection.close();
-				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1208);
+					  ":processCommand:getFSMode failed:"+command,e);
+				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1206);
 				multRunDone.setErrorString(e.toString());
 				multRunDone.setSuccessful(false);
 				return multRunDone;
 			}
-		}
-	// do exposures
-		index = 0;
-		retval = true;
-		reduceFilenameList = new Vector();
-		while(retval&&(index < multRunCommand.getNumberExposures()))
-		{
-			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Starting exposure "+index+".");
-		// RA/Dec Offset for sky dithering.
-			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Offseting telescope.");
-			if(offsetTelescope(multRunCommand,multRunDone,index) == false)
+			if(bFS == 1)// Fowler sampling mdoe
 			{
-				//moveFilterToBlank(multRunCommand,multRunDone);
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				//idlTelnetConnection.close();
-				return multRunDone;
+				try
+				{
+					ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+						":processCommand:Configuring Fowler sampling mode.");
+					nReset = status.getPropertyInteger("ioi.config.FOWLER.nreset");
+					nRead = status.getPropertyInteger("ioi.config.FOWLER.nread");
+					setFSParamCommand = new SetFSParamCommand();
+					setFSParamCommand.setTelnetConnection(idlTelnetConnection);
+					setFSParamCommand.setCommand(nReset,nRead,1,exposureLengthSeconds,1);
+					setFSParamCommand.sendCommand();
+					if(setFSParamCommand.getReplyErrorCode() != 0)
+					{
+						ioi.error(this.getClass().getName()+":processCommand:SetFSParam failed:"+
+							  setFSParamCommand.getReplyErrorCode()+":"+
+							  setFSParamCommand.getReplyErrorString());
+						idlTelnetConnection.close();
+						multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1204);
+						multRunDone.setErrorString("processCommand:SetFSParam failed:"+
+									   setFSParamCommand.getReplyErrorCode()+":"+
+									   setFSParamCommand.getReplyErrorString());
+						multRunDone.setSuccessful(false);
+						return multRunDone;
+					}
+				}
+				catch(Exception e)
+				{
+					ioi.error(this.getClass().getName()+
+						  ":processCommand:SetFSParam failed:"+command,e);
+					//idlTelnetConnection.close();
+					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1207);
+					multRunDone.setErrorString(e.toString());
+					multRunDone.setSuccessful(false);
+					return multRunDone;
+				}
 			}
-		// get fits headers
-			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Retrieving FITS headers.");
-			clearFitsHeaders();
-			if(setFitsHeaders(multRunCommand,multRunDone,obsType,
-				multRunCommand.getExposureTime(),multRunCommand.getNumberExposures()) == false)
+			else if(bFS == 0)// Read Up the Ramp mode
 			{
-				//moveFilterToBlank(multRunCommand,multRunDone);
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				//idlTelnetConnection.close();
-				return multRunDone;
+				try
+				{
+					ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+						":processCommand:Configuring read-up-the-ramp mode.");
+					nReset = status.getPropertyInteger("ioi.config.UP_THE_RAMP.nreset");
+					nRead = status.getPropertyInteger("ioi.config.UP_THE_RAMP.nread");
+					nDrop = status.getPropertyInteger("ioi.config.UP_THE_RAMP.ndrop");
+					groupExecutionTime = status.getPropertyInteger("ioi.config.UP_THE_RAMP.group_execution_time");
+					setRampParamCommand = new SetRampParamCommand();
+					setRampParamCommand.setTelnetConnection(idlTelnetConnection);
+					nGroup = ((int)(exposureLengthSeconds*1000/groupExecutionTime));
+					setRampParamCommand.setCommand(nReset,nRead,nGroup,nDrop,1);
+					setRampParamCommand.sendCommand();
+					if(setRampParamCommand.getReplyErrorCode() != 0)
+					{
+						ioi.error(this.getClass().getName()+":processCommand:SetRampParam failed:"+
+							  setRampParamCommand.getReplyErrorCode()+":"+
+							  setRampParamCommand.getReplyErrorString());
+						idlTelnetConnection.close();
+						multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1205);
+						multRunDone.setErrorString("processCommand:SetRampParam failed:"+
+									   setRampParamCommand.getReplyErrorCode()+":"+
+									   setRampParamCommand.getReplyErrorString());
+						multRunDone.setSuccessful(false);
+						return multRunDone;
+					}
+				}
+				catch(Exception e)
+				{
+					ioi.error(this.getClass().getName()+
+						  ":processCommand:SetRampParam failed:"+command,e);
+					//idlTelnetConnection.close();
+					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1208);
+					multRunDone.setErrorString(e.toString());
+					multRunDone.setSuccessful(false);
+					return multRunDone;
+				}
 			}
-			if(getFitsHeadersFromISS(multRunCommand,multRunDone) == false)
-			{
-				//moveFilterToBlank(multRunCommand,multRunDone);
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				//idlTelnetConnection.close();
-				return multRunDone;
-			}
-			if(testAbort(multRunCommand,multRunDone) == true)
-			{
-				//moveFilterToBlank(multRunCommand,multRunDone);
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				//idlTelnetConnection.close();
-				return multRunDone;
-			}
-			if(getFitsHeadersFromBSS(multRunCommand,multRunDone) == false)
-			{
-				//moveFilterToBlank(multRunCommand,multRunDone);
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				//idlTelnetConnection.close();
-				return multRunDone;
-			}
-			if(testAbort(multRunCommand,multRunDone) == true)
-			{
-				//moveFilterToBlank(multRunCommand,multRunDone);
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				//idlTelnetConnection.close();
-				return multRunDone;
-			}
-			// get a timestamp before taking an exposure
-			// we will use this to find the generated directory
-			acquireRampCommandCallTime = System.currentTimeMillis();
-		// do exposure.
-			try
+			// do exposures
+			index = 0;
+			retval = true;
+			reduceFilenameList = new Vector();
+			while(retval&&(index < multRunCommand.getNumberExposures()))
 			{
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Acquiring ramp.");
-				acquireRampCommand = new AcquireRampCommand();
-				acquireRampCommand.setTelnetConnection(idlTelnetConnection);
-				acquireRampCommand.sendCommand();
-				if(acquireRampCommand.getReplyErrorCode() != 0)
+					":processCommand:Starting exposure "+index+".");
+				// RA/Dec Offset for sky dithering.
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Offseting telescope.");
+				if(offsetTelescope(multRunCommand,multRunDone,index) == false)
 				{
-					ioi.error(this.getClass().getName()+":processCommand:AcquireRamp failed:"+
-						  acquireRampCommand.getReplyErrorCode()+":"+
-						  acquireRampCommand.getReplyErrorString());
 					//moveFilterToBlank(multRunCommand,multRunDone);
 					resetTelescopeOffset(multRunCommand,multRunDone);
 					//idlTelnetConnection.close();
-					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1209);
-					multRunDone.setErrorString("processCommand:AcquireRamp failed:"+
-								   acquireRampCommand.getReplyErrorCode()+":"+
-								   acquireRampCommand.getReplyErrorString());
+					return multRunDone;
+				}
+				// get fits headers
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Retrieving FITS headers.");
+				clearFitsHeaders();
+				if(setFitsHeaders(multRunCommand,multRunDone,obsType,
+						  multRunCommand.getExposureTime(),multRunCommand.getNumberExposures()) == false)
+				{
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
+					//idlTelnetConnection.close();
+					return multRunDone;
+				}
+				if(getFitsHeadersFromISS(multRunCommand,multRunDone) == false)
+				{
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
+					//idlTelnetConnection.close();
+					return multRunDone;
+				}
+				if(testAbort(multRunCommand,multRunDone) == true)
+				{
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
+					//idlTelnetConnection.close();
+					return multRunDone;
+				}
+				if(getFitsHeadersFromBSS(multRunCommand,multRunDone) == false)
+				{
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
+					//idlTelnetConnection.close();
+					return multRunDone;
+				}
+				if(testAbort(multRunCommand,multRunDone) == true)
+				{
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
+					//idlTelnetConnection.close();
+					return multRunDone;
+				}
+				// get a timestamp before taking an exposure
+				// we will use this to find the generated directory
+				acquireRampCommandCallTime = System.currentTimeMillis();
+				status.setExposureStartTime(acquireRampCommandCallTime);
+				status.setCurrentMode(GET_STATUS_DONE.MODE_EXPOSING);
+				// do exposure.
+				try
+				{
+					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+						":processCommand:Acquiring ramp.");
+					acquireRampCommand = new AcquireRampCommand();
+					acquireRampCommand.setTelnetConnection(idlTelnetConnection);
+					acquireRampCommand.sendCommand();
+					if(acquireRampCommand.getReplyErrorCode() != 0)
+					{
+						ioi.error(this.getClass().getName()+":processCommand:AcquireRamp failed:"+
+							  acquireRampCommand.getReplyErrorCode()+":"+
+							  acquireRampCommand.getReplyErrorString());
+						status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
+						//moveFilterToBlank(multRunCommand,multRunDone);
+						resetTelescopeOffset(multRunCommand,multRunDone);
+						//idlTelnetConnection.close();
+						multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1209);
+						multRunDone.setErrorString("processCommand:AcquireRamp failed:"+
+									   acquireRampCommand.getReplyErrorCode()+":"+
+									   acquireRampCommand.getReplyErrorString());
+						multRunDone.setSuccessful(false);
+						return multRunDone;
+					}
+				}
+				catch(Exception e)
+				{
+					retval = false;
+					ioi.error(this.getClass().getName()+
+						  ":processCommand:AcquireRampCommand failed:"+command+":"+e.toString());
+					status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
+					//idlTelnetConnection.close();
+					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1200);
+					multRunDone.setErrorString(e.toString());
 					multRunDone.setSuccessful(false);
 					return multRunDone;
 				}
-			}
-			catch(Exception e)
+				// We are not really reading out, but managing the acquired data
+				status.setCurrentMode(GET_STATUS_DONE.MODE_READING_OUT);
+				// find the data just acquired
+				try
+				{
+					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+						":processCommand:Finding ramp data.");
+					directory = findRampData(idlTelnetConnection,acquireRampCommandCallTime);
+					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+						":processCommand:Listing FITS images in Ramp Data directory "+directory+".");
+					fitsFileList = findFITSFilesInDirectory(directory);
+					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+						":processCommand:Adding FITS headers to "+fitsFileList.size()+" FITS images.");
+					addFitsHeadersToFitsImages(fitsFileList);
+					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+						":processCommand:Rename generated FITS images to LT spec (if enabled).");
+					renameFitsFiles(fitsFileList,exposureCode);
+				}
+				catch(Exception e)
+				{
+					retval = false;
+					ioi.error(this.getClass().getName()+
+						  ":processCommand:Processing acquired data failed:"+command+":",e);
+					status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
+					//idlTelnetConnection.close();
+					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1201);
+					multRunDone.setErrorString(this.getClass().getName()+
+								   ":processCommand:findRampData failed:"+e.toString());
+					multRunDone.setSuccessful(false);
+					return multRunDone;
+				}
+				status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Ramp data found in directory:"+directory);
+				// for now, the returned filename is set to the directory containing the result data set.
+				filename = directory;
+				// send acknowledge to say frames are completed.
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Sending ACK.");
+				multRunAck = new MULTRUN_ACK(command.getId());
+				multRunAck.setTimeToComplete(multRunCommand.getExposureTime()+
+							     serverConnectionThread.getDefaultAcknowledgeTime());
+				multRunAck.setFilename(filename);
+				try
+				{
+					serverConnectionThread.sendAcknowledge(multRunAck);
+				}
+				catch(IOException e)
+				{
+					retval = false;
+					ioi.error(this.getClass().getName()+
+						  ":processCommand:sendAcknowledge:"+command+":"+e.toString());
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
+				//idlTelnetConnection.close();
+					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1202);
+					multRunDone.setErrorString(e.toString());
+					multRunDone.setSuccessful(false);
+					return multRunDone;
+				}
+				status.setExposureNumber(index+1);
+				// add filename to list for data pipeline processing.
+				reduceFilenameList.addAll(fitsFileList);
+				// test whether an abort has occured.
+				if(testAbort(multRunCommand,multRunDone) == true)
+				{
+					retval = false;
+				}
+				index++;
+			}// end while
+			// if a failure occurs, return now
+			if(!retval)
 			{
-				retval = false;
-				ioi.error(this.getClass().getName()+
-					":processCommand:AcquireRampCommand failed:"+command+":"+e.toString());
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				//idlTelnetConnection.close();
-				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1200);
-				multRunDone.setErrorString(e.toString());
-				multRunDone.setSuccessful(false);
 				return multRunDone;
 			}
-			// find the data just acquired
-			try
-			{
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Finding ramp data.");
-				directory = findRampData(idlTelnetConnection,acquireRampCommandCallTime);
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Listing FITS images in Ramp Data directory "+directory+".");
-				fitsFileList = findFITSFilesInDirectory(directory);
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Adding FITS headers to "+fitsFileList.size()+" FITS images.");
-				addFitsHeadersToFitsImages(fitsFileList);
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Rename generated FITS images to LT spec (if enabled).");
-				renameFitsFiles(fitsFileList,exposureCode);
-			}
-			catch(Exception e)
-			{
-				retval = false;
-				ioi.error(this.getClass().getName()+
-					  ":processCommand:Processing acquired data failed:"+command+":",e);
-				//moveFilterToBlank(multRunCommand,multRunDone);
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				//idlTelnetConnection.close();
-				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1201);
-				multRunDone.setErrorString(this.getClass().getName()+
-							   ":processCommand:findRampData failed:"+e.toString());
-				multRunDone.setSuccessful(false);
-				return multRunDone;
-			}
-			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Ramp data found in directory:"+directory);
-			// for now, the returned filename is set to the directory containing the result data set.
-			filename = directory;
-		// send acknowledge to say frames are completed.
-			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Sending ACK.");
-			multRunAck = new MULTRUN_ACK(command.getId());
-			multRunAck.setTimeToComplete(multRunCommand.getExposureTime()+
-						     serverConnectionThread.getDefaultAcknowledgeTime());
-			multRunAck.setFilename(filename);
-			try
-			{
-				serverConnectionThread.sendAcknowledge(multRunAck);
-			}
-			catch(IOException e)
-			{
-				retval = false;
-				ioi.error(this.getClass().getName()+
-					":processCommand:sendAcknowledge:"+command+":"+e.toString());
-				//moveFilterToBlank(multRunCommand,multRunDone);
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				//idlTelnetConnection.close();
-				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1202);
-				multRunDone.setErrorString(e.toString());
-				multRunDone.setSuccessful(false);
-				return multRunDone;
-			}
-			status.setExposureNumber(index+1);
-		// add filename to list for data pipeline processing.
-			reduceFilenameList.addAll(fitsFileList);
-		// test whether an abort has occured.
-			if(testAbort(multRunCommand,multRunDone) == true)
-			{
-				retval = false;
-			}
-			index++;
-		}// end while
-	// if a failure occurs, return now
-		if(!retval)
+		}
+		finally
 		{
-			//moveFilterToBlank(multRunCommand,multRunDone);
-			resetTelescopeOffset(multRunCommand,multRunDone);
-			//idlTelnetConnection.close();
-			return multRunDone;
+			try
+			{
+				idlTelnetConnection.close();
+			}
+			catch(Exception e)
+			{
+				ioi.error(this.getClass().getName()+
+					  ":processCommand:IDL Socket Server Telnet Connection close failed:",e);
+				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1214);
+				multRunDone.setErrorString("processCommand:IDL Socket Server Telnet Connection close failed:"+
+							   e);
+				multRunDone.setSuccessful(false);
+				return multRunDone;
+			}
 		}
 		//moveFilterToBlank(multRunCommand,multRunDone);
 	// reset telescope offsets
@@ -419,20 +469,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			":processCommand:Reseting telescope offset.");
 		if(resetTelescopeOffset(multRunCommand,multRunDone) == false)
 			return multRunDone;
-		try
-		{
-			idlTelnetConnection.close();
-		}
-		catch(Exception e)
-		{
-			ioi.error(this.getClass().getName()+
-				  ":processCommand:IDL Socket Server Telnet Connection close failed:",e);
-			multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1214);
-			multRunDone.setErrorString("processCommand:IDL Socket Server Telnet Connection close failed:"+
-						   e);
-			multRunDone.setSuccessful(false);
-			return multRunDone;
-		}
 		index = 0;
 		retval = true;
 	// call pipeline to process data and get results

@@ -59,6 +59,15 @@ public class IOIStatus
 	 */
 	private ISS_TO_INST currentCommand = null;
 	/**
+	 * What we think the array is currently doing. Values are taken from GET_STATUS_DONE.
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_IDLE
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_CONFIGURING
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_WAITING_TO_START
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_EXPOSING
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_READING_OUT
+	 */
+	private int currentMode = GET_STATUS_DONE.MODE_IDLE;
+	/**
 	 * A list of properties held in the properties file. This contains configuration information in IO:I
 	 * that needs to be changed irregularily.
 	 */
@@ -90,6 +99,14 @@ public class IOIStatus
 	 * The number of the current exposure being taken.
 	 */
 	private int exposureNumber = 0;
+	/**
+	 * The exposure start time, in milliseconds since the epoch.
+	 */
+	private long exposureStartTime = 0;
+	/**
+	 * The exposure length in milliseconds.
+	 */
+	private int exposureLength = 0;
 
 	/**
 	 * Default constructor. Initialises the properties.
@@ -231,6 +248,36 @@ public class IOIStatus
 	}
 
 	/**
+	 * Set the command that is currently executing.
+	 * @param mode A mode value describing what the array is currently doing.
+	 * @see #currentMode
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_IDLE
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_CONFIGURING
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_WAITING_TO_START
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_EXPOSING
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_READING_OUT
+	 */
+	public synchronized void setCurrentMode(int mode)
+	{
+		currentMode = mode;
+	}
+
+	/**
+	 * Get what we think the array is currently doing.
+	 * @return An integer, The current mode, as defined by constants in GET_STATUS_DONE.
+	 * @see #currentMode
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_IDLE
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_CONFIGURING
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_WAITING_TO_START
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_EXPOSING
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_READING_OUT
+	 */
+	public synchronized int getCurrentMode()
+	{
+		return currentMode;
+	}
+
+	/**
 	 * Set the number of exposures needed to complete the current command implementation.
 	 * @param c The total number of exposures needed.
 	 * @see #exposureCount
@@ -268,6 +315,46 @@ public class IOIStatus
 	public synchronized int getExposureNumber()
 	{
 		return exposureNumber;
+	}
+
+	/**
+	 * Set the exposure start time.
+	 * @param est The exposure starttime, in milliseconds since the epoch.
+	 * @see #exposureStartTime
+	 */
+	public synchronized void setExposureStartTime(long est)
+	{
+		exposureStartTime = est;
+	}
+
+	/**
+	 * Get the exposure start time.
+	 * @return The exposure start time, in milliseconds since the epoch.
+	 * @see #exposureStartTime
+	 */
+	public synchronized long getExposureStartTime()
+	{
+		return exposureStartTime;
+	}
+
+	/**
+	 * Set the exposure length.
+	 * @param ms The exposure length, in milliseconds.
+	 * @see #exposureLength
+	 */
+	public synchronized void setExposureLength(int ms)
+	{
+		exposureLength = ms;
+	}
+
+	/**
+	 * Get the exposure length.
+	 * @return The exposure length, in milliseconds.
+	 * @see #exposureLength
+	 */
+	public synchronized int getExposureLength()
+	{
+		return exposureLength;
 	}
 
 	/**

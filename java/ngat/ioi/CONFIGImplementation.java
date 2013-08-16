@@ -84,7 +84,10 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 	 * An object of class CONFIG_DONE is returned. If an error occurs a suitable error message is returned.
 	 * @see ngat.phase2.IRCamConfig
 	 * @see IOI#getStatus
+	 * @see IOIStatus#setCurrentMode
 	 * @see FITSImplementation#setFocusOffset
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_IDLE
+	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_CONFIGURING
 	 */
 	public COMMAND_DONE processCommand(COMMAND command)
 	{
@@ -160,6 +163,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 			configDone.setSuccessful(false);
 			return configDone;
 		}
+		status.setCurrentMode(GET_STATUS_DONE.MODE_CONFIGURING);
 		try
 		{
 			// configure array readout mode (fowler sample mode/read up the ramp mode)
@@ -173,6 +177,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 				ioi.error(this.getClass().getName()+":processCommand:"+command+":SetFSMode failed:"+
 					  setFSModeCommand.getReplyErrorCode()+":"+
 					  setFSModeCommand.getReplyErrorString());
+				status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
 				configDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+804);
 				configDone.setErrorString("SetFSMode failed:"+setFSModeCommand.getReplyErrorCode()+":"+
 					  setFSModeCommand.getReplyErrorString());
@@ -183,6 +188,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		catch(Exception e)
 		{
 			ioi.error(this.getClass().getName()+":processCommand:"+command+":SetFSMode failed:",e);
+			status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
 			configDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+803);
 			configDone.setErrorString("SetFSMode failed:"+e.toString());
 			configDone.setSuccessful(false);
@@ -190,6 +196,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		}
 		finally
 		{
+			status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
 			try
 			{
 				idlTelnetConnection.close();
@@ -243,7 +250,6 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 	// return done object.
 		return configDone;
 	}
-
 }
 //
 // $Log$

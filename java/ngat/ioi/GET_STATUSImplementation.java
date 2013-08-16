@@ -146,6 +146,15 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 				      detectorTemperatureInstrumentStatus);
 			instrumentStatus = GET_STATUS_DONE.VALUE_STATUS_UNKNOWN;
 			hashTable.put(GET_STATUS_DONE.KEYWORD_INSTRUMENT_STATUS,instrumentStatus);
+			// current command
+			currentCommand = status.getCurrentCommand();
+			if(currentCommand == null)
+				hashTable.put("currentCommand","");
+			else
+				hashTable.put("currentCommand",currentCommand.getClass().getName());
+			// currentMode
+			getStatusDone.setCurrentMode(status.getCurrentMode());
+
 		}
 		catch(Exception e)
 		{
@@ -157,6 +166,11 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			getStatusDone.setSuccessful(false);
 			return getStatusDone;
 		}
+		// exposure data
+		hashTable.put("Exposure Length",new Integer(status.getExposureLength()));
+		hashTable.put("Exposure Start Time",new Long(status.getExposureStartTime()));
+		hashTable.put("Exposure Count",new Integer(status.getExposureCount()));
+		hashTable.put("Exposure Number",new Integer(status.getExposureNumber()));
 	// intermediate level information - basic plus controller calls.
 		if(getStatusCommand.getLevel() >= GET_STATUS.LEVEL_INTERMEDIATE)
 		{

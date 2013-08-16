@@ -44,6 +44,10 @@ public class TestIDLSocketServer
 	 * Set using SETFSMODE command and returned as part of GetConfig, so the MULTRUNImplementation works.
 	 */
 	protected int bFS = 1;
+	/**
+	 * The calculated exposure length, the amount of time in milliseconds an AcquireRamp is meant to take.
+	 */
+	protected int exposureLength = 0;
 
 	/**
 	 * Method to start the server socket, and to keep accepting conenctions, and
@@ -97,6 +101,7 @@ public class TestIDLSocketServer
 		terminateServer = true;
 		serverSocket.close();
 	}
+
 	/**
 	 * Set the fowler sampling mode.
 	 * @param i Should be 1 for fowler sampling, and 0 for Read Up the Ramp.
@@ -115,6 +120,26 @@ public class TestIDLSocketServer
 	public int getFS()
 	{
 		return bFS;
+	}
+
+	/**
+	 * Set the exposure length.
+	 * @param i The exposure length in milliseconds
+	 * @see #exposureLength
+	 */
+	public void setExposureLength(int i)
+	{
+		exposureLength = i;
+	}
+
+	/**
+	 * Get the current exposure length.
+	 * @return An integer specifying the exposure length, in milliseconds.
+	 * @see #exposureLength
+	 */
+	public int getExposureLength()
+	{
+		return exposureLength;
 	}
 
 	/**
@@ -282,6 +307,18 @@ public class TestIDLSocketServer
 					   commandString);
 			if(commandString.equals("ACQUIRERAMP"))
 			{
+				// sleep for the exposure length
+				System.out.println(this.getClass().getName()+
+						   ":parseCommandLine:ACQUIRERAMP:Sleeping for "+
+						   testIDLSocketServer.getExposureLength()+
+						   " milliseconds to simulate ACQUIRERAMP");
+				try
+				{
+					Thread.sleep(testIDLSocketServer.getExposureLength());
+				}
+				catch(InterruptedException e)
+				{
+				}
 				replyString = new String("0:Ramp Acquired.\n");
 			}
 			else if(commandString.equals("GETCONFIG"))
@@ -342,6 +379,12 @@ public class TestIDLSocketServer
 							   " has value "+parameterList.get(i));
 					
 				}
+				// set exposure length in milliseconds
+				// exposure length in seconds is fourth parameter:- index 3.
+				testIDLSocketServer.setExposureLength(parameterList.get(3).intValue()*1000);
+				System.out.println(this.getClass().getName()+":parseCommandLine:Command:"+
+						   "SETFSPARAM:Exposure length computed to be:"+
+						   testIDLSocketServer.getExposureLength()+" ms.");
 				replyString = new String("0:Set Fowler Sampling Parmeters received.\n");
 			}
 			else if (commandString.startsWith("SETRAMPPARAM"))
@@ -356,6 +399,13 @@ public class TestIDLSocketServer
 							   " has value "+parameterList.get(i));
 					
 				}
+				// set exposure length in milliseconds
+				// ioi.config.UP_THE_RAMP.group_execution_time		=1430
+				// nGroup is third paremeter:- index 2
+				testIDLSocketServer.setExposureLength(parameterList.get(2).intValue()*1430);
+				System.out.println(this.getClass().getName()+":parseCommandLine:Command:"+
+						   "SETFSPARAM:Exposure length computed to be:"+
+						   testIDLSocketServer.getExposureLength()+" ms.");
 				replyString = new String("0:Set Ramp Parmeters received.\n");
 			}
 			else
