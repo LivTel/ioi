@@ -6,6 +6,7 @@ import java.lang.*;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.text.*;
 
 import ngat.util.*;
 
@@ -25,6 +26,16 @@ public class TestIDLSocketServer
 	 * The default port number.
 	 */
 	public final static int DEFAULT_PORT_NUMBER = 5000;
+	/**
+	 * Directory postpended to the root directory, depending on whether AcquireRamp is in fowler sampling
+	 * or read up the ramp mode.
+	 */
+	public final static String FS_MODE_DIRECTORY_FOWLER = new String("FSRamp");
+	/**
+	 * Directory postpended to the root directory, depending on whether AcquireRamp is in fowler sampling
+	 * or read up the ramp mode.
+	 */
+	public final static String FS_MODE_DIRECTORY_UP_THE_RAMP = new String("UpTheRamp");
 	/**
 	 * The socket port to run the server on.
 	 * @see #DEFAULT_PORT_NUMBER
@@ -48,6 +59,19 @@ public class TestIDLSocketServer
 	 * The calculated exposure length, the amount of time in milliseconds an AcquireRamp is meant to take.
 	 */
 	protected int exposureLength = 0;
+	/**
+	 * A boolean, set to true when an AcquireRamp command is active, and false when it is not.
+	 * Used to return the correct errorCode from a Ping command.
+	 */
+	protected boolean acquiringRamp = false;
+	/**
+	 * Whether to abort the ramp currently being acquired.
+	 */
+	protected boolean abort = false;
+	/**
+	 * Root data directory where AcquireRamp generated pathnames start from.
+	 */
+	protected String rootDataDirectory = new String("/home/dev/tmp/data/H2RG-C001-ASIC-LT1");
 
 	/**
 	 * Method to start the server socket, and to keep accepting conenctions, and
@@ -143,15 +167,88 @@ public class TestIDLSocketServer
 	}
 
 	/**
+	 * Set the flag that determines whether to abort the currently acquiring ramp or not.
+	 * @param b A boolean, true if the ramp is to be aborted, false is not.
+	 * @see #abort
+	 */
+	public void setAbort(boolean b)
+	{
+		abort = b;
+	}
+
+	/**
+	 * Get the flag that determines whether to abort the currently acquiring ramp or not.
+	 * @return A boolean, true if the ramp is to be aborted, false is not.
+	 * @see #abort
+	 */
+	public boolean getAbort()
+	{
+		return abort;
+	}
+
+	/**
+	 * Set the flag that determines when an AcquireRamp command is active.
+	 * This is used to return the correct errorCode from a Ping command.
+	 * @param b A boolean, true when an AcquireRamp command is active, and false when it is not.
+	 * @see #acquiringRamp
+	 */
+	public void setAcquiringRamp(boolean b)
+	{
+		acquiringRamp = b;
+	}
+
+	/**
+	 * Get the flag that determines when an AcquireRamp command is active.
+	 * This is used to return the correct errorCode from a Ping command.
+	 * @return A boolean, true when an AcquireRamp command is active, and false when it is not.
+	 * @see #acquiringRamp
+	 */
+	public boolean getAcquiringRamp()
+	{
+		return acquiringRamp;
+	}
+
+	/**
+	 * Method to set the root data directory AcquireRamp uses as a base of the FITS filenames it generates.
+	 * @param s A string representing a directory.
+	 * @see #rootDataDirectory
+	 */
+	public void setRootDataDirectory(String s)
+	{
+		rootDataDirectory = s;
+	}
+
+	/**
+	 * Method to get the root data directory AcquireRamp uses as a base of the FITS filenames it generates.
+	 * @return A string representing a directory.
+	 * @see #rootDataDirectory
+	 */
+	public String getRootDataDirectory()
+	{
+		return rootDataDirectory;
+	}
+
+	/**
 	 * This methods parses command line arguments.
 	 * @see #help
 	 * @see #portNumber
+	 * @see #rootDataDirectory
 	 */
 	private void parseArgs(String[] args)
 	{
 		for(int i = 0; i < args.length;i++)
 		{
-			if(args[i].equals("-h")||args[i].equals("-help"))
+			if(args[i].equals("-d")||args[i].equals("-directory"))
+			{
+				if((i+1)< args.length)
+				{
+					rootDataDirectory = args[i+1];
+					i++;
+				}
+				else
+					System.err.println("-directory requires a string parameter");
+			}
+			else if(args[i].equals("-h")||args[i].equals("-help"))
 			{
 				help();
 				System.exit(0);
@@ -179,6 +276,7 @@ public class TestIDLSocketServer
 		System.out.println(this.getClass().getName()+" Help:");
 		System.out.println("Options are:");
 		System.out.println("\t-p[ort] <number> - The port number to run the server on.");
+		System.out.println("\t-d[irectory] <string> - The root data directory AcquireRamp creates new directories in.");
 		System.out.println("\t-h[elp] - Print this help message.");
 	}
 
@@ -298,28 +396,72 @@ public class TestIDLSocketServer
 		 * a suitable (fake) reply.
 		 * @param commandString The command to be parsed.
 		 * @return A string containing the reply to send to the client over the socket connection.
+		 * @see TestIDLSocketServer#FS_MODE_DIRECTORY_FOWLER
+		 * @see TestIDLSocketServer#FS_MODE_DIRECTORY_UP_THE_RAMP
 		 */
 		public String parseCommandLine(String commandString)
 		{
 			String replyString = null;
+			int tExp = 0;
 
 			System.out.println(this.getClass().getName()+":parseCommandLine:Started with command:"+
 					   commandString);
 			if(commandString.equals("ACQUIRERAMP"))
 			{
-				// sleep for the exposure length
+				SimpleDateFormat dateFormat = null;
+				File directory = null;
+				String fsModeDirectoryString = null;
+				String leafString = null;
+
+				System.out.println(this.getClass().getName()+
+						   ":parseCommandLine:ACQUIRERAMP:Started");
+				// create a data directory.
+				if(testIDLSocketServer.getFS() == 0)
+					fsModeDirectoryString = TestIDLSocketServer.FS_MODE_DIRECTORY_UP_THE_RAMP;
+				else if(testIDLSocketServer.getFS() == 1)
+					fsModeDirectoryString = TestIDLSocketServer.FS_MODE_DIRECTORY_FOWLER;
+				else
+				{
+					replyString = new String(this.getClass().getName()+
+								 ":parseCommandLine:ACQUIRERAMP:Illegal bFS value:"+
+								 testIDLSocketServer.getFS());
+					return replyString;
+				}
+
+				// date stamped directories should be of the form: 20130424170309
+				dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+				leafString = dateFormat.format(new Date());
+				directory = new File(rootDataDirectory+File.separator+
+						     fsModeDirectoryString+File.separator+leafString);
+				System.out.println(this.getClass().getName()+
+						   ":parseCommandLine:ACQUIRERAMP:Creating directory:"+directory);
+				directory.mkdir();
+				// setup global variables for abort
+				testIDLSocketServer.setAbort(false);
+				testIDLSocketServer.setAcquiringRamp(true);
+				tExp = 0;
 				System.out.println(this.getClass().getName()+
 						   ":parseCommandLine:ACQUIRERAMP:Sleeping for "+
 						   testIDLSocketServer.getExposureLength()+
 						   " milliseconds to simulate ACQUIRERAMP");
-				try
+				// sleep for the exposure length, or until aborted
+				while((tExp < testIDLSocketServer.getExposureLength()) && 
+				      (testIDLSocketServer.getAbort() == false))
 				{
-					Thread.sleep(testIDLSocketServer.getExposureLength());
+					try
+					{
+						Thread.sleep(1000);
+						tExp += 1000;
+					}
+					catch(InterruptedException e)
+					{
+					}
 				}
-				catch(InterruptedException e)
-				{
-				}
-				replyString = new String("0:Ramp Acquired.\n");
+				testIDLSocketServer.setAcquiringRamp(false);
+				if(testIDLSocketServer.getAbort())
+					replyString = new String("1:Ramp Aborted.\n");
+				else
+					replyString = new String("0:Ramp Acquired.\n");
 			}
 			else if(commandString.equals("GETCONFIG"))
 			{
@@ -338,6 +480,13 @@ public class TestIDLSocketServer
 				{
 				}
 				replyString = new String("0:Initialized.\n");
+			}
+			else if(commandString.equals("PING"))
+			{
+				if(testIDLSocketServer.getAcquiringRamp())
+					replyString = new String("-1:Acquiring Ramp.\n");
+				else
+					replyString = new String("0:Idle.\n");
 			}
 			else if(commandString.equals("POWERDOWNASIC"))
 			{
@@ -407,6 +556,25 @@ public class TestIDLSocketServer
 						   "SETFSPARAM:Exposure length computed to be:"+
 						   testIDLSocketServer.getExposureLength()+" ms.");
 				replyString = new String("0:Set Ramp Parmeters received.\n");
+			}
+			else if (commandString.equals("STOPACQUISITION"))
+			{
+				if(testIDLSocketServer.getAcquiringRamp())
+				{
+					System.out.println(this.getClass().getName()+
+							   ":parseCommandLine:STOPACQUISITION:"+
+							   "We are acquring ramp:Setting abort flag.\n");
+					testIDLSocketServer.setAbort(true);
+					replyString = new String("0:Set abort flag.\n");
+				}
+				else
+				{
+					System.out.println(this.getClass().getName()+
+							   ":parseCommandLine:STOPACQUISITION:"+
+							   "We are not acquring a ramp:Returning an error\n");
+					replyString = new String("1:We are not acquiring a ramp:"+
+								 "STOPACQUISITION failed.\n");
+				}
 			}
 			else
 				replyString = new String("1:Unknown Command\n");

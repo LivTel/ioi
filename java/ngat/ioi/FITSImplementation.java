@@ -548,6 +548,10 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":findRampData:started.");
+		// remove milliseconds within the second from acquireRampCommandCallTime 
+		// This is because the directory file date is accurate to 1 second, so
+		// the directory can appear to have been created before acquireRampCommandCallTime by < 1 second
+		acquireRampCommandCallTime -= (acquireRampCommandCallTime%1000);
 		// get root directory
 		rootDirectoryString = status.getProperty("ioi.data.directory.root");
 		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
@@ -585,7 +589,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 			":findRampData:Found "+directoryList.length+" files in directory:"+directoryFile+".");
 		// date stamped directories should be of the form: 20130424170309
-		dateFormat = new SimpleDateFormat("yyyyMMDDHHmmss");
+		dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
 		smallestDiffTime = Integer.MAX_VALUE;
 		smallestDiffFile = null;
 		for(int i = 0; i < directoryList.length; i++)
@@ -601,6 +605,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 					ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 						":findRampData:"+directoryList[i]+" has diff time "+
 						(diffTime/1000.0)+" seconds after acquire ramp command call time.");
+					// You would
 					if((diffTime >= 0)&&(diffTime < smallestDiffTime))
 					{
 						smallestDiffTime = diffTime;
@@ -637,7 +642,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		}
 		directoryString = smallestDiffFile.toString();
 		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
-			   ":findRampData:finished and returning directory:"+directoryString+".");
+			":findRampData:finished and returning directory:"+directoryString+" with diff time "+
+			(smallestDiffTime/1000.0)+".");
 		return directoryString;
 	}
 

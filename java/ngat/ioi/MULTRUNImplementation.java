@@ -336,7 +336,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					acquireRampCommand.sendCommand();
 					if(acquireRampCommand.getReplyErrorCode() != 0)
 					{
-						ioi.error(this.getClass().getName()+":processCommand:AcquireRamp failed:"+
+						ioi.error(this.getClass().getName()+
+							  ":processCommand:AcquireRamp failed:"+
 							  acquireRampCommand.getReplyErrorCode()+":"+
 							  acquireRampCommand.getReplyErrorString());
 						status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
@@ -355,7 +356,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				{
 					retval = false;
 					ioi.error(this.getClass().getName()+
-						  ":processCommand:AcquireRampCommand failed:"+command+":"+e.toString());
+						  ":processCommand:AcquireRampCommand failed:"+command+":"+
+						  e.toString());
 					status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
 					//moveFilterToBlank(multRunCommand,multRunDone);
 					resetTelescopeOffset(multRunCommand,multRunDone);
