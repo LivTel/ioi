@@ -146,9 +146,9 @@ echo "${jar_count} jars copied."
 #
 # Java classes
 #
-# dprt/test dprt/java/ngat/dprt dprt/java/ngat/dprt/ioi 
+# 
 echo "Copying Java class directories..."
-set java_class_dir_list = "autobooter/java ccs_gui/java "
+set java_class_dir_list = "autobooter/java ccs_gui/java dprt/test dprt/java/ngat/dprt dprt/java/ngat/dprt/ioi"
 # o/test
 set java_class_dir_count = 0
 foreach java_class_dir ( ${java_class_dir_list} )
@@ -183,9 +183,9 @@ echo "${java_class_dir_count} Java class directories copied."
 #
 echo "Copying C libraries..."
 # in /home/dev/bin/lib/${HOSTTYPE}
-# libngatastrometrywcstools.so  libtarga.so libo_ccd.so libdprt_ioi.so libioi_ccd_dprt.so 
+# libngatastrometrywcstools.so  libtarga.so
 # libdprt_libfits.so liblt_filenames.so
-set clib_list = "libcfitsio.so libngatastro.so libngatfits.so libngatutil.so libdprt_jni_general.so libdprt_object.so libsupircam_temperature_controller.so"
+set clib_list = "libcfitsio.so libngatastro.so libngatfits.so libngatutil.so libdprt_jni_general.so libdprt_object.so libdprt_ioi.so libsupircam_temperature_controller.so"
 set clib_count = 0
 foreach clib ( ${clib_list} )
 	echo "C Library : ${clib}"
@@ -240,8 +240,7 @@ echo "${clib_count} C libraries copied."
 # C test programs
 #
 echo "Copying C test program directories..."
-#  libdprt/ioi/test/${HOSTTYPE} 
-set dir_list = "ics_util/c/${HOSTTYPE} ccd/misc/${HOSTTYPE} supircam/temperature_controller/test//${HOSTTYPE}"
+set dir_list = "ics_util/c/${HOSTTYPE} ccd/misc/${HOSTTYPE} supircam/temperature_controller/test//${HOSTTYPE} libdprt/ioi/test/${HOSTTYPE} "
 set dir_count = 0
 set file_count = 0
 # clean out deployment_tmp_dir
@@ -312,8 +311,7 @@ echo "${file_count} scripts copied."
 #
 # in bin sub-directories
 echo "Copying machine configuration files..."
-# dprt/java/${machine_name}.dprt.properties 
-set file_list = "ioi/java/${machine_name}.fits.properties ioi/java/${machine_name}.ioi.net.properties ioi/java/${machine_name}.ioi.properties ccs_gui/java/${machine_name}.ccs_gui.properties ccs_gui/java/${machine_name}.ccs_gui_config.properties ccs_gui/java/${machine_name}.ccs_gui.fits.properties ccs_gui/java/${machine_name}.ics_gui.fits.bss.properties autobooter/java/${machine_name}.autobooter.properties"
+set file_list = "ioi/java/${machine_name}.fits.properties ioi/java/${machine_name}.ioi.net.properties ioi/java/${machine_name}.ioi.properties ccs_gui/java/${machine_name}.ccs_gui.properties ccs_gui/java/${machine_name}.ccs_gui_config.properties ccs_gui/java/${machine_name}.ccs_gui.fits.properties ccs_gui/java/${machine_name}.ics_gui.fits.bss.properties autobooter/java/${machine_name}.autobooter.properties dprt/java/${machine_name}.dprt.properties "
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )

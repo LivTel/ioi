@@ -337,6 +337,7 @@ public class AcquireRampAndGuide
 	 * @see #nGuideGroup
 	 * @see #nGuideDrop
 	 * @see #findRampData
+	 * @see #printDate
 	 * @see #totalExposureLengthSeconds
 	 * @see ngat.ioi.command.Command#setTelnetConnection
 	 * @see ngat.ioi.command.Command#sendCommand
@@ -361,7 +362,7 @@ public class AcquireRampAndGuide
 		SetWindowModeCommand setWindowModeCommand = null;
 		SetRampParamCommand setRampParamCommand = null;
 		String directory = null;
-		long exposureStartTime,acquireRampCommandCallTime,currentTime;
+		long exposureStartTime,acquireRampCommandCallTime,currentTime,exposureEndTime;
 		boolean done;
 
 		logger.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":expose:started.");
@@ -416,9 +417,13 @@ public class AcquireRampAndGuide
 			}
 			// Take a timestamp - this is the start of the exposure.
 			exposureStartTime = System.currentTimeMillis();
+			logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				   ":expose:Exposure Start Time:"+printDate(exposureStartTime));
 			// get a timestamp before taking an exposure
 			// we will use this to find the generated directory
 			acquireRampCommandCallTime = System.currentTimeMillis();
+			logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				   ":expose:Acquire Ramp Call Time:"+printDate(acquireRampCommandCallTime));
 			// Acquire the first science sub-ramp - this will also initially reset the array.
 			logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":expose:Acquire the first science sub-ramp - "+
@@ -445,7 +450,13 @@ public class AcquireRampAndGuide
 			// Loop until the current time is greater than the exposure start time 
 			// plus the exposure length.
 			currentTime = System.currentTimeMillis();
-			done = (currentTime >= (exposureStartTime+(totalExposureLengthSeconds*SECONDS_TO_MS)));
+			logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				   ":expose:Current Time:"+printDate(currentTime));
+			exposureEndTime = (exposureStartTime+((long)(totalExposureLengthSeconds*SECONDS_TO_MS)));
+			logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				   ":expose:Exposure End Time:"+printDate(exposureEndTime));
+			done = (currentTime >= exposureEndTime);
+			logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":expose:done:"+done);
 			while(done == false)
 			{
 				// Set window mode to window.
@@ -571,7 +582,10 @@ public class AcquireRampAndGuide
 				// Loop until the current time is greater than the exposure start time 
 				// plus the exposure length.
 				currentTime = System.currentTimeMillis();
-				done = (currentTime >= (exposureStartTime+(totalExposureLengthSeconds*SECONDS_TO_MS)));
+				logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+					   ":expose:Current Time:"+printDate(currentTime));
+				done = (currentTime >= exposureEndTime);
+				logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":expose:done:"+done);
 			}// end while
 		}
 		finally
@@ -635,6 +649,10 @@ public class AcquireRampAndGuide
 		int bFS;
 
 		logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":findRampData:started.");
+		// remove milliseconds within the second from acquireRampCommandCallTime 
+		// This is because the directory file date is accurate to 1 second, so
+		// the directory can appear to have been created before acquireRampCommandCallTime by < 1 second
+		acquireRampCommandCallTime -= (acquireRampCommandCallTime%1000);
 		// get root directory
 		logger.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 			   ":findRampData:root directory:"+rootDirectory+".");
@@ -668,7 +686,7 @@ public class AcquireRampAndGuide
 		logger.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 			":findRampData:Found "+directoryList.length+" files in directory:"+directoryFile+".");
 		// date stamped directories should be of the form: 20130424170309
-		dateFormat = new SimpleDateFormat("yyyyMMDDHHmmss");
+		dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
 		smallestDiffTime = Integer.MAX_VALUE;
 		smallestDiffFile = null;
 		for(int i = 0; i < directoryList.length; i++)
@@ -681,9 +699,9 @@ public class AcquireRampAndGuide
 				if(fileDate != null)
 				{
 					diffTime = fileDate.getTime()-acquireRampCommandCallTime;
-					logger.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-						   ":findRampData:"+directoryList[i]+" has diff time "+
-						   (diffTime/1000.0)+" seconds after acquire ramp command call time.");
+					//logger.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					//	   ":findRampData:"+directoryList[i]+" has diff time "+
+					//	   (diffTime/1000.0)+" seconds after acquire ramp command call time.");
 					if((diffTime >= 0)&&(diffTime < smallestDiffTime))
 					{
 						smallestDiffTime = diffTime;
@@ -695,10 +713,10 @@ public class AcquireRampAndGuide
 					}
 					else
 					{
-						logger.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-							   ":findRampData:"+directoryList[i]+" has diff time "+
-							   (diffTime/1000.0)+
-							   " seconds after acquire ramp command call time.");
+						//logger.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+						//	   ":findRampData:"+directoryList[i]+" has diff time "+
+						//	   (diffTime/1000.0)+
+						//	   " seconds after acquire ramp command call time.");
 					}
 				}
 				else
@@ -725,6 +743,22 @@ public class AcquireRampAndGuide
 		return directoryString;
 	}
 
+	/**
+	 * Given a date in the form of milliseconds since the epoch, print a string representation of the date
+	 * and time in the format yyyy-MM-dd'T'HH:mm:ss.SSS.
+	 * @param timeMillis The number of milliseconds since the epoch.
+	 * @return A string representing the date/time, in the format yyyy-MM-dd'T'HH:mm:ss.SSS.
+	 */
+	protected String printDate(long timeMillis)
+	{
+		SimpleDateFormat dateFormat = null;
+		Date d = null;
+
+		dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
+		d = new Date();
+		d.setTime(timeMillis);
+		return dateFormat.format(d);
+	}
 }
 //
 // $Log$

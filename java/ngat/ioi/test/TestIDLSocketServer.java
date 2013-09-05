@@ -492,6 +492,20 @@ public class TestIDLSocketServer
 			{
 				replyString = new String("0:Powered down.\n");
 			}
+			else if (commandString.startsWith("SETIDLEMODEOPTION"))
+			{
+				// SETIDLEMODEOPTION(1)
+				List<Number> parameterList = parseNumberParameters(commandString);
+
+				replyString = new String("0:Idle mode option set to "+parameterList.get(0)+".\n");
+			}
+			else if (commandString.startsWith("SETFRAMEMODE"))
+			{
+				// SETFRAMEMODE(0)
+				List<Number> parameterList = parseNumberParameters(commandString);
+
+				replyString = new String("0:Frame mode option set to "+parameterList.get(0)+".\n");
+			}
 			else if (commandString.startsWith("SETFSMODE"))
 			{
 				int fsMode = 1;
@@ -556,6 +570,20 @@ public class TestIDLSocketServer
 						   "SETFSPARAM:Exposure length computed to be:"+
 						   testIDLSocketServer.getExposureLength()+" ms.");
 				replyString = new String("0:Set Ramp Parmeters received.\n");
+			}
+			else if (commandString.startsWith("SETWINPARAMS"))
+			{
+				// SETWINPARAMS(100, 100, 200, 200)
+				List<Integer> parameterList = parseIntegerParameters(commandString);
+
+				for(int i = 0; i < parameterList.size(); i++ )
+				{
+					System.out.println(this.getClass().getName()+":parseCommandLine:Command:"+
+							   "SETWINPARAMS Parameter:"+i+
+							   " has value "+parameterList.get(i));
+					
+				}
+				replyString = new String("0:Set Window Parmeters received.\n");
 			}
 			else if (commandString.equals("STOPACQUISITION"))
 			{
