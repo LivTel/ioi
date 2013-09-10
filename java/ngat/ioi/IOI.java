@@ -866,15 +866,38 @@ public class IOI
 		try
 		{
 			initializeLevel = status.getPropertyInteger("ioi.idl.initialize.level");
+			log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			    ":startupController:Initialising Sidecar with level "+initializeLevel+".");
 			initializeCommand = new InitializeCommand();
 			initializeCommand.setTelnetConnection(idlTelnetConnection);
 			initializeCommand.setCommand(initializeLevel);
 			initializeCommand.sendCommand();
+			if(initializeCommand.getReplyErrorCode() != 0)
+			{
+				// If this fails, it could be because the HAL layer has not been started. 
+				// We can fix this by issuing a Initialize3 command.
+				if(initializeCommand.getReplyErrorCode() == 1)
+				{
+					log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+					    ":startupController:Initialize"+initializeLevel+
+					    " failed, trying Initialze3 to start IDE/HAL server.");
+					initializeCommand = new InitializeCommand();
+					initializeCommand.setTelnetConnection(idlTelnetConnection);
+					initializeCommand.setCommand(3);
+					initializeCommand.sendCommand();
+				}
+				if(initializeCommand.getReplyErrorCode() != 0)
+				{
+					throw new Exception(this.getClass().getName()+
+							    ":startupController:Initialze failed:"+
+							    initializeCommand.getReplyErrorCode()+":"+
+							    initializeCommand.getReplyErrorString());
+				}
+			}// end if first initialise2 failed
 		}
 		catch(Exception e)
 		{
-			error(this.getClass().getName()+":startupController:"+
-			      "Initialze"+initializeLevel+" failed:",e);
+			error(this.getClass().getName()+":startupController:Initialze failed:",e);
 			throw e;
 		}
 		finally
@@ -890,12 +913,6 @@ public class IOI
 				throw e;
 			}
 
-		}
-		if(initializeCommand.getReplyErrorCode() != 0)
-		{
-			throw new Exception(this.getClass().getName()+":startupController:Initialze"+initializeLevel+
-					    " failed:"+initializeCommand.getReplyErrorCode()+":"+
-					    initializeCommand.getReplyErrorString());
 		}
 		// temperature controller
 		try
