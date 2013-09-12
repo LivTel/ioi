@@ -734,19 +734,31 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	public void addFitsHeadersToFitsImages(List fitsImageList) throws FitsHeaderException
 	{
 		File fitsFile = null;
+		boolean fitsFilenameAnnotate;
 
-		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
-			":addFitsHeadersToFitsImages:Adding "+ioiFitsHeader.getKeywordValueCount()+" headers to "+
-			fitsImageList.size()+" FITS images.");
-		for(int fitsImageIndex=0;fitsImageIndex < fitsImageList.size(); fitsImageIndex++)
+		fitsFilenameAnnotate = status.getPropertyBoolean("ioi.file.fits.annotate");
+		if(fitsFilenameAnnotate)
 		{
-			fitsFile = (File)(fitsImageList.get(fitsImageIndex));
-			ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-				":addFitsHeadersToFitsImages:Adding headers to "+fitsFile.toString());
-			ioiFitsHeader.writeFitsHeader(fitsFile.toString());
+			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				":addFitsHeadersToFitsImages:Adding "+ioiFitsHeader.getKeywordValueCount()+
+				" headers to "+fitsImageList.size()+" FITS images.");
+			for(int fitsImageIndex=0;fitsImageIndex < fitsImageList.size(); fitsImageIndex++)
+			{
+				fitsFile = (File)(fitsImageList.get(fitsImageIndex));
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":addFitsHeadersToFitsImages:Adding headers to "+fitsFile.toString());
+				ioiFitsHeader.writeFitsHeader(fitsFile.toString());
+			}
+			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				":addFitsHeadersToFitsImages:Finished.");
 		}
-		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
-			":addFitsHeadersToFitsImages:Finished.");
+		else
+		{
+			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				":addFitsHeadersToFitsImages:ioi.file.fits.annotate is failse:"+
+				"Not annotating FITS headers.");
+
+		}
 	}
 
 	/**
