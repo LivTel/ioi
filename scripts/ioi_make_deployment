@@ -148,8 +148,7 @@ echo "${jar_count} jars copied."
 #
 # 
 echo "Copying Java class directories..."
-set java_class_dir_list = "autobooter/java ccs_gui/java dprt/test dprt/java/ngat/dprt dprt/java/ngat/dprt/ioi"
-# o/test
+set java_class_dir_list = "autobooter/java ccs_gui/java dprt/test dprt/java/ngat/dprt dprt/java/ngat/dprt/ioi ioi/test"
 set java_class_dir_count = 0
 foreach java_class_dir ( ${java_class_dir_list} )
 	echo "Java class directory : ${java_class_dir}"

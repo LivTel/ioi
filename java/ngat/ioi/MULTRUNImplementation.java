@@ -42,6 +42,10 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @see HardwareImplementation#getFSMode
 	 */
 	protected int bFS = 0;
+	/**
+	 * The overhead time for reading out in milliseconds.
+	 */
+	protected int rampOverheadTime = 0;
 
 	/**
 	 * Constructor.
@@ -182,6 +186,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			" ms and number of exposures "+multRunCommand.getNumberExposures()+".");
 		if(testAbort(multRunCommand,multRunDone) == true)
 			return multRunDone;
+		// send an initiali ACK, actually getDefaultAcknowledgeTime long
+		if(sendACK(multRunCommand,multRunDone,0) == false)
+			return multRunDone;
 	// setup exposure status.
 		status.setExposureCount(multRunCommand.getNumberExposures());
 		status.setExposureNumber(0);
@@ -205,6 +212,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		exposureLengthSeconds = ((double)(multRunCommand.getExposureTime())/1000.0);
 		try
 		{
+			// send an ACK, actually getDefaultAcknowledgeTime long
+			if(sendACK(multRunCommand,multRunDone,0) == false)
+				return multRunDone;
 			// Find out which sampling mode the array is using
 			if(!openIDLTelnetConnection(multRunCommand,multRunDone))
 				return multRunDone;
@@ -226,6 +236,14 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			reduceFilenameList = new Vector();
 			while(retval&&(index < multRunCommand.getNumberExposures()))
 			{
+				// send an ACK, actually at least one exposure length + ramp overhead long
+				if(sendACK(multRunCommand,multRunDone,
+					    multRunCommand.getExposureTime()+rampOverheadTime) == false)
+				{
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
+					return multRunDone;
+				}
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":processCommand:Starting exposure "+index+".");
 				// RA/Dec Offset for sky dithering.
@@ -273,6 +291,14 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					resetTelescopeOffset(multRunCommand,multRunDone);
 					return multRunDone;
 				}
+				// send an ACK, at least one exposure length + ramp overhead long
+				if(sendACK(multRunCommand,multRunDone,
+					    multRunCommand.getExposureTime()+rampOverheadTime) == false)
+				{
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
+					return multRunDone;
+				}
 				// get a timestamp before taking an exposure
 				// we will use this to find the generated directory
 				acquireRampCommandCallTime = System.currentTimeMillis();
@@ -291,6 +317,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				// find the data just acquired
 				try
 				{
+					// diddly this can take a while. 
+					// send an ACK based on fitsFileList.size() and a per-frame annotate/rename
+					// overhead
 					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 						":processCommand:Finding ramp data.");
 					directory = findRampData(idlTelnetConnection,acquireRampCommandCallTime);
@@ -529,6 +558,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @return We return true if the method succeeds, and false if an error occurs.
 	 * @see #ioi
 	 * @see #idlTelnetConnection
+	 * @see #rampOverheadTime
 	 * @see ngat.ioi.IOI#error
 	 * @see ngat.ioi.command.SetFSParamCommand
 	 */
@@ -536,7 +566,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 						      double exposureLengthSeconds)
 	{
 		SetFSParamCommand setFSParamCommand = null;
-		int nReset,nRead;
+		int nReset,nRead,resetExecutionTime,readExecutionTime;
 
 		try
 		{
@@ -561,6 +591,16 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				multRunDone.setSuccessful(false);
 				return false;
 			}
+			// calculate ramp overhead
+			resetExecutionTime = status.getPropertyInteger("ioi.config.FOWLER.reset_execution_time");
+			readExecutionTime = status.getPropertyInteger("ioi.config.FOWLER.read_execution_time");
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				":setFowlerSamplingParameters:resetExecutionTime = "+resetExecutionTime+
+				",readExecutionTime = "+readExecutionTime+".");
+			// there is one set of nReset resets, and TWO sets of nRead reads per AcquireRamp
+			rampOverheadTime = (resetExecutionTime*nReset)+(2*nRead*readExecutionTime);
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				":setFowlerSamplingParameters:rampOverheadTime = "+rampOverheadTime+".");
 		}
 		catch(Exception e)
 		{
@@ -597,6 +637,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @return We return true if the method succeeds, and false if an error occurs.
 	 * @see #ioi
 	 * @see #idlTelnetConnection
+	 * @see #rampOverheadTime
 	 * @see ngat.ioi.IOI#error
 	 * @see ngat.ioi.command.SetFSParamCommand
 	 */
@@ -604,7 +645,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 						     double exposureLengthSeconds)
 	{
 		SetRampParamCommand setRampParamCommand = null;
-		int nReset,nRead,nDrop,nGroup,groupExecutionTime;
+		int nReset,nRead,nDrop,nGroup,groupExecutionTime,resetExecutionTime;
 
 		try
 		{
@@ -647,6 +688,13 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				multRunDone.setSuccessful(false);
 				return false;
 			}
+			// as nGroup is computed from groupexecution time, the overhead is just the reset overhead
+			resetExecutionTime = status.getPropertyInteger("ioi.config.UP_THE_RAMP.reset_execution_time");
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				":setReadUpTheRampParameters:resetExecutionTime = "+resetExecutionTime+".");
+			rampOverheadTime = nReset*resetExecutionTime;
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				":setReadUpTheRampParameters:rampOverheadTime = "+rampOverheadTime+".");
 		}
 		catch(Exception e)
 		{
@@ -863,6 +911,45 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	}
 
 	/**
+	 * Method to send an ACK to the to ensure the client connection is kept open.
+	 * @param multRunCommand The MULTRUN command we are implementing.
+	 * @param multRunDone The MULTRUN_DONE command object that will be returned to the client. We set
+	 *       a sensible error message in this object if this method fails.
+	 * @param timeToComplete The length of time before the MULTRUN command is due to finish,
+	 *      or before the next ACK is to be sent, in milliseconds. The client should hold open the
+	 *      socket connection for the MULTRUN command for at least this length of time before giving up.
+	 * @return We return true if the method succeeds, and false if an error occurs.
+	 * @see #ioi
+	 * @see #idlTelnetConnection
+	 * @see #serverConnectionThread
+	 * @see ngat.ioi.IOI#log
+	 * @see ngat.ioi.IOI#error
+	 * @see ngat.message.ISS_INST.ACK
+	 */
+	protected boolean sendACK(MULTRUN multRunCommand,MULTRUN_DONE multRunDone,int timeToComplete)
+	{
+		ACK ack = null;
+
+		// send acknowledge to say frames are completed.
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":sendACK:Sending ACK.");
+		ack = new ACK(multRunCommand.getId());
+		ack.setTimeToComplete(timeToComplete+serverConnectionThread.getDefaultAcknowledgeTime());
+		try
+		{
+			serverConnectionThread.sendAcknowledge(ack);
+		}
+		catch(IOException e)
+		{
+			ioi.error(this.getClass().getName()+":sendACK:sendAcknowledge failed:",e);
+			multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1217);
+			multRunDone.setErrorString("sendMultrunACK:sendAcknowledge failed:"+e.toString());
+			multRunDone.setSuccessful(false);
+			return false;
+		}
+		return true;
+	}
+
+	/**
 	 * Method to send an ACK containing the filename (could actually be a directory) just taken back to the
 	 * client, and to ensure the client connection is kept open.
 	 * @param multRunCommand The MULTRUN command we are implementing.
@@ -872,6 +959,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @see #ioi
 	 * @see #idlTelnetConnection
 	 * @see #serverConnectionThread
+	 * @see #rampOverheadTime
 	 * @see ngat.ioi.IOI#log
 	 * @see ngat.ioi.IOI#error
 	 * @see ngat.message.ISS_INST.MULTRUN_ACK
@@ -883,7 +971,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		// send acknowledge to say frames are completed.
 		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":sendMultrunACK:Sending ACK.");
 		multRunAck = new MULTRUN_ACK(multRunCommand.getId());
-		multRunAck.setTimeToComplete(multRunCommand.getExposureTime()+
+		multRunAck.setTimeToComplete(multRunCommand.getExposureTime()+rampOverheadTime+
 					     serverConnectionThread.getDefaultAcknowledgeTime());
 		multRunAck.setFilename(filename);
 		try

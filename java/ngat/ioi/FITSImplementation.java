@@ -225,6 +225,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		boolean filterWheelEnable,tempControlEnable;
 		char tempInput;
 
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":setFitsHeaders:Started.");
 		// filter wheel and dfocus data
 		try
 		{
@@ -253,8 +255,12 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		}
 		try
 		{
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":setFitsHeaders:Loading defaults.");
 		// load all the FITS header defaults and put them into the ioiFitsHeader object
 			defaultFitsHeaderList = ioiFitsHeaderDefaults.getCardImageList();
+			ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+				":setFitsHeaders:Adding "+defaultFitsHeaderList.size()+" defaults to list.");
 			ioiFitsHeader.addKeywordValueList(defaultFitsHeaderList,0);
 		// NAXIS1
 			//cardImage = ioiFitsHeader.get("NAXIS1");
@@ -276,6 +282,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			//cardImage = ioiFitsHeader.get("EXPNUM");
 			//cardImage.setValue(new Integer(oFilename.getRunNumber()));
 		// EXPTOTAL
+			ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+				":setFitsHeaders:EXPTOTAL = "+exposureCount+".");
 			cardImage = ioiFitsHeader.get("EXPTOTAL");
 			cardImage.setValue(new Integer(exposureCount));
 		// The DATE,DATE-OBS and UTSTART keywords are saved using the current date/time.
@@ -295,6 +303,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			//cardImage = ioiFitsHeader.get("MJD");
 			//cardImage.setValue(date);
 		// EXPTIME
+			ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+				":setFitsHeaders:EXPTIME = "+(((double)exposureTime)/1000.0)+".");
 			cardImage = ioiFitsHeader.get("EXPTIME");
 			cardImage.setValue(new Double(((double)exposureTime)/1000.0));
 		// FILTER1
@@ -305,6 +315,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			//cardImage = ioiFitsHeader.get("FILTERI1");
 			//cardImage.setValue(filterWheelIdString);
 		// CONFIGID
+			ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+				":setFitsHeaders:CONFIGID = "+status.getConfigId()+".");
 			cardImage = ioiFitsHeader.get("CONFIGID");
 			cardImage.setValue(new Integer(status.getConfigId()));
 		// CONFNAME
@@ -312,6 +324,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			cardImage.setValue(status.getConfigName());
 		// CCDSTEMP
 			doubleValue = status.getPropertyDouble("ioi.temp_control.config.target_temperature.0");
+			ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+				":setFitsHeaders:CCDSTEMP = "+doubleValue+".");
 			cardImage = ioiFitsHeader.get("CCDSTEMP");
 			cardImage.setValue(new Integer((int)doubleValue));
 			// check whether temperature control is enabled
@@ -321,7 +335,17 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 				tempInput = status.getPropertyChar("ioi.temp_control.temperature_input."+0);
 				actualTemperature = tempControl.temperatureGet(tempInput);
 		// CCDATEMP
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":setFitsHeaders:CCDATEMP = "+actualTemperature+".");
 				cardImage = ioiFitsHeader.get("CCDATEMP");
+				cardImage.setValue(new Integer((int)(actualTemperature)));
+				// sidecar temperature
+				tempInput = status.getPropertyChar("ioi.temp_control.temperature_input."+1);
+				actualTemperature = tempControl.temperatureGet(tempInput);
+		// SIDETEMP
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":setFitsHeaders:SIDETEMP = "+actualTemperature+".");
+				cardImage = ioiFitsHeader.get("SIDETEMP");
 				cardImage.setValue(new Integer((int)(actualTemperature)));
 			}
 		// windowing keywords
@@ -330,20 +354,29 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			//cardImage = ioiFitsHeader.get("CCDWMODE");
 			//cardImage.setValue(new Boolean((boolean)(windowFlags>0)));
 		// CALBEFOR
-			cardImage = ioiFitsHeader.get("CALBEFOR");
+			//ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+":setFitsHeaders:CALBEFOR.");
+			//cardImage = ioiFitsHeader.get("CALBEFOR");
 			// diddly cardImage.setValue(new Boolean(status.getCachedConfigCalibrateBefore()));
 		// CALAFTER
-			cardImage = ioiFitsHeader.get("CALAFTER");
+			//cardImage = ioiFitsHeader.get("CALAFTER");
 			// diddly cardImage.setValue(new Boolean(status.getCachedConfigCalibrateAfter()));
 		// INSTDFOC
+			ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+				":setFitsHeaders:INSTDFOC = "+instDFoc+".");
 			cardImage = ioiFitsHeader.get("INSTDFOC");
 			cardImage.setValue(new Double(instDFoc));
 		// FILTDFOC
+			ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+				":setFitsHeaders:FILTDFOC = "+filtDFoc+".");
 			cardImage = ioiFitsHeader.get("FILTDFOC");
 			cardImage.setValue(new Double(filtDFoc));
 		// MYDFOCUS
+			ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+				":setFitsHeaders:MYDFOCUS = "+myDFoc+".");
 			cardImage = ioiFitsHeader.get("MYDFOCUS");
 			cardImage.setValue(new Double(myDFoc));
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":setFitsHeaders:Finished.");
 		}// end try
 		// ngat.fits.FitsHeaderException thrown by ioiFitsHeaderDefaults.getValue
 		// ngat.util.FileUtilitiesNativeException thrown by IOIStatus.getConfigId
@@ -352,6 +385,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		// Exception thrown by IOIStatus.getConfigId
 		catch(Exception e)
 		{
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":setFitsHeaders:An error occured whilst setting headers.");
 			String s = new String("Command "+command.getClass().getName()+
 				":Setting Fits Headers failed:");
 			ioi.error(s,e);
