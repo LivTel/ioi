@@ -1,4 +1,4 @@
-// SendConfigCommand.java
+// SendMultrunCommand.java 
 // $HeadURL$
 package ngat.ioi.test;
 
@@ -8,45 +8,37 @@ import java.net.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import ngat.o.*;
 import ngat.message.ISS_INST.*;
 import ngat.phase2.*;
 import ngat.util.*;
 import ngat.util.logging.*;
 
 /**
- * This class send a IR camera configuration to IO:I. The configuration can be randonly generated 
- * (using a filter wheel database to get sensible names) or specified.
+ * This class sends a MULTRUN to IO:I. 
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.1 $
  */
-public class SendConfigCommand
+public class SendMultrunCommand
 {
 	/**
 	 * The default port number to send ISS commands to.
 	 */
-	static final int DEFAULT_IOI_PORT_NUMBER = 8472;
+	static final int DEFAULT_IOI_PORT_NUMBER = 8472;;
 	/**
-	 * The default port number for the fake ISS server, to get commands from the IO:I from.
+	 * The default port number for the fake ISS server, to receive ISS commands from IO:I.
 	 */
 	static final int DEFAULT_ISS_SERVER_PORT_NUMBER = 7383;
 	/**
-	 * The default port number for the fake BSS server, to get commands from the IO:I from.
+	 * The default port number for the fake BSS server, to receive BSS commands from IO:I.
 	 */
 	static final int DEFAULT_BSS_SERVER_PORT_NUMBER = 6683;
-	/**
-	 * The filename of a current filter wheel property file.
-	 */
-	private String filename = null;
-	/**
-	 * A property list of filter wheel properties.
-	 */
-	private NGATProperties filterWheelProperties = null;
 	/**
 	 * The ip address of the IOI:I controlo computer, to send the CONFIG command to.
 	 */
 	private InetAddress address = null;
 	/**
-	 * The port number to send the CONFIG commands to on the IO:I control computer.
+	 * The port number to send the MULTRUN commands to on the IO:I control computer.
 	 */
 	private int ioiPortNumber = DEFAULT_IOI_PORT_NUMBER;
 	/**
@@ -66,27 +58,22 @@ public class SendConfigCommand
 	 */
 	private BSSServer bssServer = null;
 	/**
-	 * Filter wheel string. Defaults to null.
+	 * Exposure length. Defaults to zero, which should cause MULTRUN to return an error.
 	 */
-	private String filterString = null;
+	private int exposureLength = 0;
 	/**
-	 * X Binning of configuration. Defaults to 1.
+	 * Number of exposures for the MULTRUN to take. 
+	 * Defaults to zero, which should cause MULTRUN to return an error.
 	 */
-	private int xBin = 1;
+	private int exposureCount = 0;
 	/**
-	 * Y Binning of configuration. Defaults to 1.
+	 * Whether this MULTRUN has standard flags set (is of a standard source). Defaults to false.
 	 */
-	private int yBin = 1;
+	private boolean standard = false;
 	/**
-	 * Whether exposures taken using this configuration, should do a calibration
-	 * before the exposure.
+	 * Whether to send the generated filenames to the DpRt. Defaults to false.
 	 */
-	private boolean calibrateBefore = false;
-	/**
-	 * Whether exposures taken using this configuration, should do a calibration
-	 * after the exposure.
-	 */
-	private boolean calibrateAfter = false;
+	private boolean pipelineProcess = false;
 	/**
 	 * Logger to log to.
 	 */
@@ -96,7 +83,7 @@ public class SendConfigCommand
 	 * Constructor.
 	 * @see #logger
 	 */
-	public SendConfigCommand()
+	public SendMultrunCommand()
 	{
 		super();
 		logger = LogManager.getLogger(this);
@@ -137,7 +124,7 @@ public class SendConfigCommand
 		handler.setLogLevel(Logging.ALL);
 		logger.addHandler(handler);
 		// copy logger log handlers to other relevant classes
-		//copyLogHandlers(logger,LogManager.getLogger("ngat.ioi.test.SendConfigCommand"),null,Logging.ALL);
+		//copyLogHandlers(logger,LogManager.getLogger("ngat.ioi.test.SendMultrunCommand"),null,Logging.ALL);
 		copyLogHandlers(logger,LogManager.getLogger("ngat.ioi.test.BSSServer"),null,Logging.ALL);
 		copyLogHandlers(logger,LogManager.getLogger("ngat.ioi.test.BSSServerConnectionThread"),null,
 				Logging.ALL);
@@ -195,86 +182,37 @@ public class SendConfigCommand
 	}
 
 	/**
-	 * Routine to load the current filter wheel properties from filename
-	 * into filterWheelProperties.
-	 * @exception FileNotFoundException Thrown if the load failed.
-	 * @exception IOException Thrown if the load failed.
-	 * @see #filename
-	 * @see #filterWheelProperties
+	 * This routine creates a MULTRUN command. 
+	 * @return An instance of MULTRUN.
+	 * @see #exposureLength
+	 * @see #exposureCount
+	 * @see #standard
+	 * @see #pipelineProcess
 	 */
-	private void loadCurrentFilterProperties() throws FileNotFoundException, IOException
-	{
-		filterWheelProperties = new NGATProperties();
-		filterWheelProperties.load(filename);
-	}
-
-	/**
-	 * Routine to select and return a random filter from the filter wheel,
-	 * using the loaded filter property database.
-	 * @return A string, a filter type, that is present in the wheel according to
-	 * 	the loaded properties.
-	 * @exception NGATPropertyException Thrown if a property retrieve fails.
-	 * @see #filterWheelProperties
-	 */
-	private String selectRandomFilter() throws NGATPropertyException
-	{
-		int positionCount,position,wheel;
-		Random random = null;
-		String filterType;
-
-		wheel = 0; // IO:I has 1 wheel.
-		positionCount = filterWheelProperties.getInt("filterwheel."+wheel+".count");
-		random = new Random();
-		position = random.nextInt(positionCount);
-		filterType = (String)(filterWheelProperties.get("filterwheel."+wheel+"."+position+".type"));
-		return filterType;
-	}
-
-	/**
-	 * This routine creates a CONFIG command. This object
-	 * has a IRCamConfig phase2 object with it, this is created and it's fields initialised.
-	 * @return An instance of CONFIG.
-	 * @see #filterString
-	 * @see #xBin
-	 * @see #yBin
-	 * @see #calibrateBefore
-	 * @see #calibrateAfter
-	 */
-	private CONFIG createConfig()
+	private MULTRUN createMultrun()
 	{
 		String string = null;
-		CONFIG configCommand = null;
-		IRCamConfig irCamConfig = null;
-		IRCamDetector detector = null;
+		MULTRUN multrunCommand = null;
 
-		configCommand = new CONFIG("Object Id");
-		irCamConfig = new IRCamConfig("Object Id");
-	// detector for config
-		detector = new IRCamDetector();
-		detector.setXBin(xBin);
-		detector.setYBin(yBin);
-		irCamConfig.setDetector(0,detector);
-	// filterWheel
-		irCamConfig.setFilterWheel(filterString);
-	// InstrumentConfig fields.
-		irCamConfig.setCalibrateBefore(calibrateBefore);
-		irCamConfig.setCalibrateAfter(calibrateAfter);
-	// CONFIG command fields
-		configCommand.setConfig(irCamConfig);
-		return configCommand;
+		multrunCommand = new MULTRUN("SendMultrunCommand");
+		multrunCommand.setExposureTime(exposureLength);
+		multrunCommand.setNumberExposures(exposureCount);
+		multrunCommand.setStandard(standard);
+		multrunCommand.setPipelineProcess(pipelineProcess);
+		return multrunCommand;
 	}
 
 	/**
-	 * This is the run routine. It creates a CONFIG object and sends it to the using a 
+	 * This is the run routine. It creates a MULTRUN object and sends it to the using a 
 	 * SicfTCPClientConnectionThread, and awaiting the thread termination to signify message
 	 * completion. 
 	 * @return The routine returns true if the command succeeded, false if it failed.
 	 * @exception Exception Thrown if an exception occurs.
-	 * @see #loadCurrentFilterProperties
-	 * @see #selectRandomFilter
-	 * @see #createConfig
+	 * @see #createMultrun
 	 * @see SicfTCPClientConnectionThread
 	 * @see #getThreadResult
+	 * @see #address
+	 * @see #ioiPortNumber
 	 */
 	private boolean run() throws Exception
 	{
@@ -283,38 +221,10 @@ public class SendConfigCommand
 		boolean retval;
 
 		logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":run:Starting.");
-		if(filename != null)
-		{
-			loadCurrentFilterProperties();
-			if(filterString == null)
-				filterString = selectRandomFilter();
-		}
-		else
-		{
-			if(filterString == null)
-				System.err.println("Program should fail:No lower filter specified.");
-		}
-		logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":run:Creating CONFIG command.");
-		issCommand = (ISS_TO_INST)(createConfig());
-		if(issCommand instanceof CONFIG)
-		{
-			CONFIG configCommand = (CONFIG)issCommand;
-			IRCamConfig irCamConfig = (IRCamConfig)(configCommand.getConfig());
-			logger.log(Logging.VERBOSITY_VERBOSE,"CONFIG:"+
-				   irCamConfig.getFilterWheel()+":"+
-				   "calibrate before:"+irCamConfig.getCalibrateBefore()+":"+
-				   "calibrate after:"+irCamConfig.getCalibrateAfter()+":"+
-				   irCamConfig.getDetector(0).getXBin()+":"+
-				   irCamConfig.getDetector(0).getYBin()+".");
-			//System.err.println("CONFIG:"+
-			//	irCamConfig.getFilterWheel()+":"+
-			//	"calibrate before:"+irCamConfig.getCalibrateBefore()+":"+
-			//	"calibrate after:"+irCamConfig.getCalibrateAfter()+":"+
-			//	irCamConfig.getDetector(0).getXBin()+":"+
-			//	irCamConfig.getDetector(0).getYBin()+".");
-		}
+		logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":run:Creating MULTRUN command.");
+		issCommand = (ISS_TO_INST)(createMultrun());
 		logger.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
-			   ":run:Starting client connection thread to send CONFIG to the robotic control software.");
+			   ":run:Starting client connection thread to send MULTRUN to the robotic control software.");
 		thread = new SicfTCPClientConnectionThread(address,ioiPortNumber,issCommand);
 		thread.start();
 		while(thread.isAlive())
@@ -348,7 +258,7 @@ public class SendConfigCommand
 
 		if(thread.getAcknowledge() == null)
 		{
-			//System.err.println("Acknowledge was null");
+			System.err.println("Acknowledge was null");
 			logger.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				   ":getThreadResult:Acknowledge was null.");
 		}
@@ -362,7 +272,7 @@ public class SendConfigCommand
 		}
 		if(thread.getDone() == null)
 		{
-			//System.err.println("Done was null");
+			//System.out.println("Done was null");
 			logger.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				   ":getThreadResult:Done was null.");
 			retval = false;
@@ -371,14 +281,22 @@ public class SendConfigCommand
 		{
 			if(thread.getDone().getSuccessful())
 			{
-				//System.err.println("Done was successful");
+				//System.out.println("Done was successful");
 				logger.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					   ":getThreadResult:Done was successful.");
+				if(thread.getDone() instanceof EXPOSE_DONE)
+				{
+					//System.out.println("\tFilename:"+
+					//	((EXPOSE_DONE)(thread.getDone())).getFilename());
+					logger.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+						   ":getThreadResult:Filename:"+
+						   ((EXPOSE_DONE)(thread.getDone())).getFilename());
+				}
 				retval = true;
 			}
 			else
 			{
-				//System.err.println("Done returned error("+thread.getDone().getErrorNum()+
+				//System.out.println("Done returned error("+thread.getDone().getErrorNum()+
 				//	"): "+thread.getDone().getErrorString());
 				logger.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					   ":getThreadResult:Done returned error("+thread.getDone().getErrorNum()+
@@ -390,17 +308,15 @@ public class SendConfigCommand
 	}
 
 	/**
-	 * This routine parses arguments passed into SendConfigCommand.
-	 * @see #filename
+	 * This routine parses arguments passed into SendMultrunCommand.
+	 * @see #exposureLength
+	 * @see #exposureCount
+	 * @see #standard
+	 * @see #pipelineProcess
 	 * @see #ioiPortNumber
 	 * @see #issServerPortNumber
 	 * @see #bssServerPortNumber
 	 * @see #address
-	 * @see #filterString
-	 * @see #xBin
-	 * @see #yBin
-	 * @see #calibrateBefore
-	 * @see #calibrateAfter
 	 * @see #help
 	 */
 	private void parseArgs(String[] args)
@@ -417,38 +333,20 @@ public class SendConfigCommand
 				else
 					System.err.println("-bssserverport requires a port number");
 			}
-			else if(args[i].equals("-ca")||args[i].equals("-calibrate_after"))
-			{
-				calibrateAfter = true;
-			}
-			else if(args[i].equals("-cb")||args[i].equals("-calibrate_before"))
-			{
-				calibrateBefore = true;
-			}
-			else if(args[i].equals("-f")||args[i].equals("-filter"))
-			{
-				if((i+1)< args.length)
-				{
-					filterString = args[i+1];
-					i++;
-				}
-				else
-					System.err.println("-filter requires a filter name");
-			}
-			else if(args[i].equals("-ff")||args[i].equals("-filterfile"))
-			{
-				if((i+1)< args.length)
-				{
-					filename = new String(args[i+1]);
-					i++;
-				}
-				else
-					System.err.println("-filterfilename requires a filename");
-			}
 			else if(args[i].equals("-h")||args[i].equals("-help"))
 			{
 				help();
 				System.exit(0);
+			}
+			else if(args[i].equals("-ioi")||args[i].equals("-ioiport"))
+			{
+				if((i+1)< args.length)
+				{
+					ioiPortNumber = Integer.parseInt(args[i+1]);
+					i++;
+				}
+				else
+					System.err.println("-ioiport requires a port number");
 			}
 			else if(args[i].equals("-ip")||args[i].equals("-address"))
 			{
@@ -468,16 +366,6 @@ public class SendConfigCommand
 				else
 					System.err.println("-address requires an address");
 			}
-			else if(args[i].equals("-ioi")||args[i].equals("-ioiport"))
-			{
-				if((i+1)< args.length)
-				{
-					ioiPortNumber = Integer.parseInt(args[i+1]);
-					i++;
-				}
-				else
-					System.err.println("-ioiport requires a port number");
-			}
 			else if(args[i].equals("-iss")||args[i].equals("-issserverport"))
 			{
 				if((i+1)< args.length)
@@ -488,25 +376,33 @@ public class SendConfigCommand
 				else
 					System.err.println("-issserverport requires a port number");
 			}
-			else if(args[i].equals("-x")||args[i].equals("-xBin"))
+			else if(args[i].equals("-l")||args[i].equals("-exposureLength"))
 			{
 				if((i+1)< args.length)
 				{
-					xBin = Integer.parseInt(args[i+1]);
+					exposureLength = Integer.parseInt(args[i+1]);
 					i++;
 				}
 				else
-					System.err.println("-xBin requires a valid number.");
+					System.err.println("-exposureLength requires an argument.");
 			}
-			else if(args[i].equals("-y")||args[i].equals("-yBin"))
+			else if(args[i].equals("-n")||args[i].equals("-exposureCount"))
 			{
 				if((i+1)< args.length)
 				{
-					yBin = Integer.parseInt(args[i+1]);
+					exposureCount = Integer.parseInt(args[i+1]);
 					i++;
 				}
 				else
-					System.err.println("-yBin requires a valid number.");
+					System.err.println("-exposureCount requires an argument.");
+			}
+			else if(args[i].equals("-pp")||args[i].equals("-pipelineProcess"))
+			{
+					pipelineProcess = true;
+			}
+			else if(args[i].equals("-t")||args[i].equals("-standard"))
+			{
+				standard = true;
 			}
 			else
 				System.err.println(this.getClass().getName()+":Option not supported:"+args[i]);
@@ -521,25 +417,20 @@ public class SendConfigCommand
 		System.out.println(this.getClass().getName()+" Help:");
 		System.out.println("Options are:");
 		System.out.println("\t-bss[serverport] <port number> - BSS fake server Port for IO:I to send commands back.");
-		System.out.println("\t-[ca|[calibrate_after] - Do a calibration after any exposures.");
-		System.out.println("\t-[cb|[calibrate_before] - Do a calibration before any exposures.");
-		System.out.println("\t-f[ilter] <filter type name> - Specify filter type.");
-		System.out.println("\t-[ff|filterfile] <filename> - filter wheel filename.");
+		System.out.println("\t-[ioi|ioiport] <port number> - Robotic software server port to send MULTRUN command to.");
 		System.out.println("\t-[ip]|[address] <address> - Address to send commands to.");
 		System.out.println("\t-iss[serverport] <port number> - ISS fake server Port for IO:I to send commands back.");
-		System.out.println("\t-[ioi|ioiport] <port number> - Port to send CONFIG command to.");
-		System.out.println("\t-x[Bin] <binning factor> - X readout binning factor the CCD.");
-		System.out.println("\t-y[Bin] <binning factor> - Y readout binning factor the CCD.");
+		System.out.println("\t-[l]|[exposureLength] <time in millis> - Specify exposure length.");
+		System.out.println("\t-[n]|[exposureCount] <number> - Specify number of exposures.");
+		System.out.println("\t-pp|-pipelineProcess - Send frames to pipeline process.");
+		System.out.println("\t-[t]|[standard] - Set standard parameters.");
 		System.out.println("The default ISS server port is "+DEFAULT_ISS_SERVER_PORT_NUMBER+".");
 		System.out.println("The default BSS server port is "+DEFAULT_BSS_SERVER_PORT_NUMBER+".");
 		System.out.println("The default IO:I port is "+DEFAULT_IOI_PORT_NUMBER+".");
-		System.out.println("The filters can be specified, otherwise if the filename is specified\n"+
-			"the filters are selected randomly from that, otherwise 'null' is sent as a filter\n"+
-			"and an error should occur.");
 	}
 
 	/**
-	 * The main routine, called when SendConfigCommand is executed. This initialises the object, parses
+	 * The main routine, called when SendMultrunCommand is executed. This initialises the object, parses
 	 * it's arguments, opens the filename, runs the run routine, and then closes the file.
 	 * @see #parseArgs
 	 * @see #init
@@ -548,19 +439,19 @@ public class SendConfigCommand
 	public static void main(String[] args)
 	{
 		boolean retval;
-		SendConfigCommand scc = new SendConfigCommand();
+		SendMultrunCommand smc = new SendMultrunCommand();
 
-		scc.parseArgs(args);
-		scc.init();
-		if(scc.address == null)
+		smc.parseArgs(args);
+		smc.init();
+		if(smc.address == null)
 		{
-			System.err.println("No IO:I Address Specified.");
-			scc.help();
+			System.err.println("No O Address Specified.");
+			smc.help();
 			System.exit(1);
 		}
 		try
 		{
-			retval = scc.run();
+			retval = smc.run();
 		}
 		catch (Exception e)
 		{
@@ -569,13 +460,19 @@ public class SendConfigCommand
 
 		}
 		// shut down started fake servers
-		if(scc.issServer != null)
-			scc.issServer.close();
-		if(scc.bssServer != null)
-			scc.bssServer.close();
+		if(smc.issServer != null)
+			smc.issServer.close();
+		if(smc.bssServer != null)
+			smc.bssServer.close();
 		if(retval)
 			System.exit(0);
 		else
 			System.exit(2);
 	}
 }
+//
+// $Log: SendMultrunCommand.java,v $
+// Revision 1.1  2011/11/23 10:59:38  cjm
+// Initial revision
+//
+//

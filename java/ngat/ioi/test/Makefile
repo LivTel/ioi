@@ -7,7 +7,8 @@ PACKAGEDIR	= ngat/ioi/test
 BINDIR 		= $(IOI_BIN_HOME)/java/$(PACKAGEDIR)
 SRCS 		= AcquireRampAndGuideCallbackInterface.java AcquireRampAndGuide.java TestAcquireRampAndGuide.java \
 		SicfTCPServer.java SicfTCPServerConnectionThread.java SicfTCPClientConnectionThread.java \
-		SendConfigCommand.java TestIDLSocketServer.java
+		SendConfigCommand.java TestIDLSocketServer.java BSSServer.java BSSServerConnectionThread.java \
+		SendMultrunCommand.java
 OBJS 		= $(SRCS:%.java=$(BINDIR)/%.class)
 
 DIRS 		= 
