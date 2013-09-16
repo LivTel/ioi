@@ -17,7 +17,7 @@ import ngat.util.logging.*;
 /**
  * This class sends a MULTRUN to IO:I. 
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class SendMultrunCommand
 {

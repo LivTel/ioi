@@ -14,7 +14,7 @@ import ngat.util.logging.*;
  * commands to an instrument. Some instrument commands involve sending commands back to the BSS, and
  * this class is designed to catch these requests and to spawn a BSSServerConnectionThread to deal with them.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class BSSServer extends TCPServer
 {

@@ -17,7 +17,7 @@ import ngat.util.logging.*;
  * This class send a IR camera configuration to IO:I. The configuration can be randonly generated 
  * (using a filter wheel database to get sensible names) or specified.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision$
  */
 public class SendConfigCommand
 {

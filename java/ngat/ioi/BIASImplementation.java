@@ -19,7 +19,7 @@ import ngat.util.logging.*;
  * This class provides the implementation for the BIAS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 11 $
+ * @version $Revision$
  */
 public class BIASImplementation extends EXPOSEImplementation implements JMSCommandImplementation
 {

@@ -14,7 +14,7 @@ import ngat.util.*;
  * This class sets up a server socket to emulate the IO:I IDL Socket Server. This allows us to test the
  * IO:I robotic software without the real IDL Socket Server (and Jade2 and sidecar) running.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision$
  */
 public class TestIDLSocketServer
 {

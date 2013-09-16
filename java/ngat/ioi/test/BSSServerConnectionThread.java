@@ -18,7 +18,7 @@ import ngat.util.logging.*;
  * This class extends the TCPServerConnectionThread class for IO:I test programs. This
  * allows the test programs to emulate the ISS's response to the instrument sending it commands.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class BSSServerConnectionThread extends TCPServerConnectionThread
 {
