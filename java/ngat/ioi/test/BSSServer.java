@@ -28,11 +28,13 @@ public class BSSServer extends TCPServer
 	private Logger logger = null;
 
 	/**
-	 * The constructor. Call the inherited constrctor.
+	 * The constructor. Call the inherited constrctor. Creates the logger.
+	 * @see #logger
 	 */
 	public BSSServer(String name,int portNumber)
 	{
 		super(name,portNumber);
+		logger = LogManager.getLogger(this);
 	}
 
 	/**

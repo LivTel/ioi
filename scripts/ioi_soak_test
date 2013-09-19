@@ -16,33 +16,33 @@ set exposure_count_list = "1 3 5 9"
 set done = 0
 set config_count = 0
 set multrun_count = 0
-date
+date -u
 echo "Starting test"
 while ( ${done} == 0 )
 	foreach exposure_count ( ${exposure_count_list} )
 		foreach exposure_length ( ${exposure_length_list} )
-			date
+			date -u
 			echo "Sending config command"
 			java ngat.ioi.test.SendConfigCommand -address ${ioi_address} -ioiport ${ioi_port} -x 1 -y 1 -filter J 
-#-issserverport 7383
+#-issserverport 7383 -bssserverport 6683
 			set config_status = $status
 			if( ${config_status} != 0 ) then
 				echo "Config ${config_count} failed."
 				exit 1
 			endif
 			@ config_count ++
-			date
+			date -u
 			echo "Sending Multrun command ${exposure_length} ms x ${exposure_count}"
 			#cd ${multrun_dir}
 			java ngat.ioi.test.SendMultrunCommand -address ${ioi_address} -ioiport ${ioi_port} -exposureLength ${exposure_length} -exposureCount ${exposure_count} 
-#-issserverport 7383
+#-issserverport 7383 -bssserverport 6683
 			set multrun_status = $status
 			if( ${multrun_status} != 0 ) then
 				echo "Multrun ${multrun_count} (${exposure_length} ms x ${exposure_count}) failed."
 				exit 1
 			endif
 			@ multrun_count ++
-			date	
+			date -u	
 			echo "Completed ${config_count} CONFIG commands and ${multrun_count} MULTRUN commands."
 		end
 	end
