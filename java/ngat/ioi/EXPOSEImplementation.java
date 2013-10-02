@@ -108,6 +108,3 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	}
 }
 
-//
-// $Log$
-//

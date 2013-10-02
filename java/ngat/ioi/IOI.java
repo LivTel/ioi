@@ -127,6 +127,11 @@ public class IOI
 	 * The error logger.
 	 */
 	protected Logger errorLogger = null;
+        /**
+	 * Telnet connection for sending commands, and receiving replies, from the IDL socket server.
+	 * @see ngat.net.TelnetConnection
+	 */
+	protected TelnetConnection idlTelnetConnection = null;
 	/**
 	 * The interface class to the temperature controller.
 	 */
@@ -307,11 +312,13 @@ public class IOI
 				LogManager.getLogger("ngat.supircam.temperaturecontroller.TemperatureController"),
 				null,Logging.ALL);
 	// IOI command handlers
-		//copyLogHandlers(logLogger,LogManager.getLogger("ngat.ioi.command.Command"),null,Logging.ALL);
-		//copyLogHandlers(logLogger,LogManager.getLogger("ngat.ioi.command.StandardReplyCommand"),null,
-		//		Logging.ALL);
-		//copyLogHandlers(logLogger,LogManager.getLogger("ngat.ioi.command.KeywordValueReplyCommand"),null,
-		//		Logging.ALL);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.ioi.command.Command"),null,Logging.ALL);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.ioi.command.CommandReplyBroker"),null,
+				Logging.ALL);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.ioi.command.StandardReplyCommand"),null,
+				Logging.ALL);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.ioi.command.KeywordValueReplyCommand"),null,
+				Logging.ALL);
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.ioi.command.AcquireRampCommand"),null,
 				Logging.ALL);
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.ioi.command.GetConfigCommand"),null,Logging.ALL);
@@ -808,7 +815,10 @@ public class IOI
 	 * Method to setup a connection to the IDL socket server, and the temperature controller.
 	 * The connection is then made and an 'Initialize2' command sent to the server.
 	 * <ul>
-	 * <li>We call getIDLTelnetConnection to setup and open a TelnetConnection to the IDL socket server.
+	 * <li>The property "ioi.idl.hostname" is retrieved.
+	 * <li>The property "ioi.idl.port_number" is retrieved.
+	 * <li>idlTelnetConnection is constructed, and it's hostname and port number is set using the above properties.
+	 * <li>The telnet conenction is opened.
 	 * <li>The property "ioi.idl.initialize.level" is retrieved.
 	 * <li>An instance of InitializeCommand is created, the level set to the property retrirvrf above, and
 	 *     the telnet connection set to idlTelnetConnection.
@@ -819,7 +829,7 @@ public class IOI
 	 * </ul>
 	 * @exception Exception Thrown if initialising the IDL Socket server fails, if the "Initialize" command
 	 *            to the IDL socket server fails or returns an error code.
-	 * @see #getIDLTelnetConnection
+	 * @see #idlTelnetConnection
 	 * @see #tempControl
 	 * @see #status
 	 * @see IOIStatus#getProperty
@@ -839,7 +849,7 @@ public class IOI
 	public void startupController() throws TemperatureControllerNativeException, Exception
 	{
 		InitializeCommand initializeCommand = null;
-		TelnetConnection idlTelnetConnection = null;
+		CommandReplyBroker replyBroker = null;
 		String idlHostname = null;
 		int idlPortNumber = 0;
 		int initializeLevel = 2;
@@ -854,7 +864,15 @@ public class IOI
 		// get the relevant configuration data from the ioi configuration file.
 		try
 		{
-			idlTelnetConnection = getIDLTelnetConnection();
+			idlHostname = status.getProperty("ioi.idl.server.hostname");
+			idlPortNumber = status.getPropertyInteger("ioi.idl.server.port_number");
+			idlTelnetConnection = new TelnetConnection();
+			idlTelnetConnection.setAddress(idlHostname);
+			idlTelnetConnection.setPortNumber(idlPortNumber);
+			idlTelnetConnection.open();
+			// attach telnet connection to CommandReplyBroker singleton instance
+			replyBroker = CommandReplyBroker.getInstance();
+			replyBroker.setTelnetConnection(idlTelnetConnection);
 		}
 		catch(Exception e)
 		{
@@ -869,7 +887,6 @@ public class IOI
 			log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			    ":startupController:Initialising Sidecar with level "+initializeLevel+".");
 			initializeCommand = new InitializeCommand();
-			initializeCommand.setTelnetConnection(idlTelnetConnection);
 			initializeCommand.setCommand(initializeLevel);
 			initializeCommand.sendCommand();
 			if(initializeCommand.getReplyErrorCode() != 0)
@@ -882,7 +899,6 @@ public class IOI
 					    ":startupController:Initialize"+initializeLevel+
 					    " failed, trying Initialze3 to start IDE/HAL server.");
 					initializeCommand = new InitializeCommand();
-					initializeCommand.setTelnetConnection(idlTelnetConnection);
 					initializeCommand.setCommand(3);
 					initializeCommand.sendCommand();
 				}
@@ -899,20 +915,6 @@ public class IOI
 		{
 			error(this.getClass().getName()+":startupController:Initialze failed:",e);
 			throw e;
-		}
-		finally
-		{
-			try
-			{
-				idlTelnetConnection.close();
-			}
-			catch(Exception e)
-			{
-				error(this.getClass().getName()+":startupController:"+
-				      "Failed to close IDL socket telnet connection:",e);
-				throw e;
-			}
-
 		}
 		// temperature controller
 		try
@@ -971,7 +973,7 @@ public class IOI
 	 * The PowerDownASIC command is sent to the IDL socket server.
 	 * The connection to the IDL socket server is then closed.
 	 * If enabled, the temperature controller socket is also closed.
-	 * @see #getIDLTelnetConnection
+	 * @see #idlTelnetConnection
 	 * @see #tempControl
 	 * @see #status
 	 * @see ngat.ioi.command.PowerDownASICCommand
@@ -980,31 +982,21 @@ public class IOI
 	 */
 	public void shutdownController() throws Exception
 	{
-		TelnetConnection idlTelnetConnection = null;
 		PowerDownASICCommand powerDownASICCommand = null;
 		boolean tempControlEnable;
 
-		// open and get a socket conenction to the IDL socket server
-		idlTelnetConnection = getIDLTelnetConnection();
 		// power down the ASIC
-		try
+		powerDownASICCommand = new PowerDownASICCommand();
+		powerDownASICCommand.sendCommand();
+		if(powerDownASICCommand.getReplyErrorCode() != 0)
 		{
-			powerDownASICCommand = new PowerDownASICCommand();
-			powerDownASICCommand.setTelnetConnection(idlTelnetConnection);
-			powerDownASICCommand.sendCommand();
-			if(powerDownASICCommand.getReplyErrorCode() != 0)
-			{
-				throw new Exception(this.getClass().getName()+
-						    ":shutdownController:PowerDownASIC failed:"+
-						    powerDownASICCommand.getReplyErrorCode()+":"+
-						    powerDownASICCommand.getReplyErrorString());
-			}
+			throw new Exception(this.getClass().getName()+
+					    ":shutdownController:PowerDownASIC failed:"+
+					    powerDownASICCommand.getReplyErrorCode()+":"+
+					    powerDownASICCommand.getReplyErrorString());
 		}
-		finally
-		{
-			// close the connection to the socket server
-			idlTelnetConnection.close();
-		}
+               // close the connection to the socket server
+		idlTelnetConnection.close();
 		tempControlEnable = status.getPropertyBoolean("ioi.temp_control.config.enable");
 		if(tempControlEnable)
 		{
@@ -1103,44 +1095,6 @@ public class IOI
 	public IOIStatus getStatus()
 	{
 		return status;
-	}
-
-	/**
-	 * Get a new, open telnet connection instance for connecting to the IDL server.
-	 * <ul>
-	 * <li>The property "ioi.idl.hostname" is retrieved.
-	 * <li>The property "ioi.idl.port_number" is retrieved.
-	 * <li>An instance of TelnetConnection is constructed, and it's hostname and port number is set 
-	 *     using the above properties.
-	 * <li>The telnet conenction is opened.
-	 * </ul>
-	 * @return The TelnetConnection instance.
-	 * @see #status
-	 * @see ngat.net.TelnetConnection
-	 * @see ngat.net.TelnetConnection#setAddress
-	 * @see ngat.net.TelnetConnection#setPortNumber
-	 * @see ngat.net.TelnetConnection#open
-	 */
-	public TelnetConnection getIDLTelnetConnection() throws Exception
-	{
-		String idlHostname = null;
-		int idlPortNumber = 0;
-		TelnetConnection idlTelnetConnection = null;
-
-		log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":getIDLTelnetConnection:Started.");
-		idlHostname = status.getProperty("ioi.idl.server.hostname");
-		idlPortNumber = status.getPropertyInteger("ioi.idl.server.port_number");
-		log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
-		    ":getIDLTelnetConnection:Creating TelnetConnection with hostname "+idlHostname+
-		    " and port number "+idlPortNumber+".");
-		idlTelnetConnection = new TelnetConnection();
-		idlTelnetConnection.setAddress(idlHostname);
-		idlTelnetConnection.setPortNumber(idlPortNumber);
-		log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
-		    ":getIDLTelnetConnection:Opening TelnetConnection.");
-		idlTelnetConnection.open();
-		log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":getIDLTelnetConnection:Finished.");
-		return idlTelnetConnection;
 	}
 
 	/**
@@ -1676,6 +1630,3 @@ public class IOI
 			System.exit(1);
 	}
 }
-//
-// $Log$
-//

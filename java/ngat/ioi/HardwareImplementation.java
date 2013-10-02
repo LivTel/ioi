@@ -75,19 +75,19 @@ public class HardwareImplementation extends CommandImplementation implements JMS
 	/**
 	 * Return what sampling mode the array (IDL socket server layer) is currently configured to use.
 	 * This is done by sending a GetConfig command to the IDL socket server and extracting the bFS config.
-	 * @param idlTelnetConnection The IDL Socket Server Telnet Connection to send the GetConfig command over.
-	 *        The Telnet Connection must have been initialised and opened.
+	 * The resultant list of keyword-value pairs is cached along with a timestamp for adding to GET_STATUS data.
 	 * @return An integer. 1 means 'Fowler sampling mode' and 0 'Read Up The Ramp mode'.
 	 * @exception Exception Thrown if the GetConfig fails, returns an error, or the bFS property is not present.
 	 * @see #ioi
+	 * @see #status
+	 * @see ngat.ioi.IOIStatus#cacheGetConfigCommand
 	 * @see ngat.ioi.command.GetConfigCommand
-	 * @see ngat.ioi.command.GetConfigCommand#setTelnetConnection
 	 * @see ngat.ioi.command.GetConfigCommand#sendCommand
 	 * @see ngat.ioi.command.GetConfigCommand#getReplyErrorCode
 	 * @see ngat.ioi.command.GetConfigCommand#getReplyErrorString
 	 * @see ngat.ioi.command.GetConfigCommand#getValueInteger
 	 */
-	protected int getFSMode(TelnetConnection idlTelnetConnection) throws Exception
+	protected int getFSMode() throws Exception
 	{
 		GetConfigCommand getConfigCommand = null;
 		int bFS;
@@ -97,7 +97,6 @@ public class HardwareImplementation extends CommandImplementation implements JMS
 		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 			   ":getFSMode:Calling GetConfig.");
 		getConfigCommand = new GetConfigCommand();
-		getConfigCommand.setTelnetConnection(idlTelnetConnection);
 		getConfigCommand.sendCommand();
 		if(getConfigCommand.getReplyErrorCode() != 0)
 		{
@@ -108,6 +107,7 @@ public class HardwareImplementation extends CommandImplementation implements JMS
 				  getConfigCommand.getReplyErrorCode()+":"+
 				  getConfigCommand.getReplyErrorString());
 		}
+		status.cacheGetConfigCommand(getConfigCommand.getHashtable(),new Date());
 		// Are we using Fowler sampling or UpTheRamp?
 		bFS = getConfigCommand.getValueInteger("bFS");
 		if(bFS == 0)
@@ -130,7 +130,3 @@ public class HardwareImplementation extends CommandImplementation implements JMS
 		return bFS;
 	}
 }
-
-//
-// $Log$
-//

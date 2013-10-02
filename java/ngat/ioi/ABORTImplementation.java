@@ -70,7 +70,6 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 	{
 		ngat.message.INST_DP.ABORT dprtAbort = new ngat.message.INST_DP.ABORT(command.getId());
 		ABORT_DONE abortDone = new ABORT_DONE(command.getId());
-		TelnetConnection idlTelnetConnection = null;
 		IOITCPServerConnectionThread thread = null;
 		IOIStatus status = null;
 		PingCommand pingCommand = null;
@@ -87,90 +86,54 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 		// Use Ping to see if an exposure is in progress
 		ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
 			   ":processCommand:Use ping to get exposure status.");
+		pingCommand = new PingCommand();
 		try
 		{
-			idlTelnetConnection = ioi.getIDLTelnetConnection();
+			pingCommand.sendCommand();
 		}
 		catch(Exception e)
 		{
-			ioi.error(this.getClass().getName()+
-				  ":processCommand:Getting IDL Socket Server Telnet Connection failed:",e);
-			abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2403);
-			abortDone.setErrorString("processCommand:Getting IDL Socket Server Telnet Connection failed:"+
-						 e);
+			ioi.error(this.getClass().getName()+":processCommand:Sending ping command failed:",e);
+			abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2401);
+			abortDone.setErrorString("processCommand:Sending ping command failed:"+e);
 			abortDone.setSuccessful(false);
 			return abortDone;
 		}
-		try
+		if(pingCommand.getReplyErrorCode() == -1) // an exposure is in progress
 		{
-			pingCommand = new PingCommand();
-			pingCommand.setTelnetConnection(idlTelnetConnection);
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				":processCommand:Exposure is in progress:Send StopAcquisition command.");
+			stopAcquisitionCommand = new StopAcquisitionCommand();
 			try
 			{
-				pingCommand.sendCommand();
-			}
-			catch(Exception e)
-			{
-				ioi.error(this.getClass().getName()+":processCommand:Sending ping command failed:",e);
-				abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2401);
-				abortDone.setErrorString("processCommand:Sending ping command failed:"+e);
-				abortDone.setSuccessful(false);
-				return abortDone;
-			}
-			if(pingCommand.getReplyErrorCode() == -1) // an exposure is in progress
-			{
-				ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
-					":processCommand:Exposure is in progress:Send StopAcquisition command.");
-				stopAcquisitionCommand = new StopAcquisitionCommand();
-				stopAcquisitionCommand.setTelnetConnection(idlTelnetConnection);
-				try
-				{
-					stopAcquisitionCommand.sendCommand();
-				}
-				catch(Exception e)
-				{
-					ioi.error(this.getClass().getName()+
-						  ":processCommand:Sending StopAcquisition command failed:",e);
-					abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2402);
-					abortDone.setErrorString("processCommand:Sending StopAcquisition command failed:"+e);
-					abortDone.setSuccessful(false);
-					return abortDone;
-				}
-				if(stopAcquisitionCommand.getReplyErrorCode() != 0)
-				{
-					ioi.error(this.getClass().getName()+":processCommand:StopAcquisition failed:"+
-						  stopAcquisitionCommand.getReplyErrorCode()+":"+
-						  stopAcquisitionCommand.getReplyErrorString());
-					abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2400);
-					abortDone.setErrorString("processCommand:StopAcquisition failed:"+
-								 stopAcquisitionCommand.getReplyErrorCode()+":"+
-								 stopAcquisitionCommand.getReplyErrorString());
-					abortDone.setSuccessful(false);
-					return abortDone;
-				}
-			}
-			else
-			{
-				ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
-					":processCommand:Exposure NOT in progress:NOT Sending StopAcquisition command.");
-			}
-		}
-		finally
-		{
-			try
-			{
-				idlTelnetConnection.close();
+				stopAcquisitionCommand.sendCommand();
 			}
 			catch(Exception e)
 			{
 				ioi.error(this.getClass().getName()+
-					  ":processCommand:IDL Socket Server telnet connection close failed:",e);
-				abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2404);
-				abortDone.setErrorString("processCommand:"+
-							 "IDL Socket Server telnet connection close failed:"+e);
+					  ":processCommand:Sending StopAcquisition command failed:",e);
+				abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2402);
+				abortDone.setErrorString("processCommand:Sending StopAcquisition command failed:"+e);
 				abortDone.setSuccessful(false);
 				return abortDone;
 			}
+			if(stopAcquisitionCommand.getReplyErrorCode() != 0)
+			{
+				ioi.error(this.getClass().getName()+":processCommand:StopAcquisition failed:"+
+					  stopAcquisitionCommand.getReplyErrorCode()+":"+
+					  stopAcquisitionCommand.getReplyErrorString());
+				abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2400);
+				abortDone.setErrorString("processCommand:StopAcquisition failed:"+
+							 stopAcquisitionCommand.getReplyErrorCode()+":"+
+							 stopAcquisitionCommand.getReplyErrorString());
+				abortDone.setSuccessful(false);
+				return abortDone;
+			}
+		}
+		else
+		{
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				":processCommand:Exposure NOT in progress:NOT Sending StopAcquisition command.");
 		}
 	// abort the dprt
 		ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":processCommand:Tell DpRt to abort.");
@@ -183,7 +146,3 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 		return abortDone;
 	}
 }
-
-//
-// $Log$
-//

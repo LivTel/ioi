@@ -52,7 +52,3 @@ public class UnknownCommandImplementation extends CommandImplementation implemen
 		return done;
 	}
 }
-
-//
-// $Log$
-//

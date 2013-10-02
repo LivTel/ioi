@@ -7,6 +7,8 @@ import java.lang.*;
 import java.net.*;
 import java.text.*;
 
+import ngat.util.logging.*;
+
 /**
  * Extension of the StandardReplyCommand class for sending the SetRampParam command to the
  * IO:I IDL Socket Server. This sets the parameters for driving the array in Read Up the Ramp Groups Mode.
@@ -64,6 +66,9 @@ public class SetRampParamCommand extends StandardReplyCommand implements Runnabl
 	public void setCommand(int nReset,int nRead,int nGroup,int nDrop,int nRamps) throws Exception
 	{
 		commandString = new String("SETRAMPPARAM("+nReset+", "+nRead+", "+nGroup+", "+nDrop+", "+nRamps+")");
+		logger.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+":setCommand:SETRAMPPARAM(nReset="+
+			   nReset+", nRead="+nRead+", nGroup="+nGroup+", nDrop="+nDrop+", nRamps="+nRamps+")");
+
 	}
 
 	/**
@@ -73,6 +78,7 @@ public class SetRampParamCommand extends StandardReplyCommand implements Runnabl
 	public static void main(String args[])
 	{
 		SetRampParamCommand command = null;
+		CommandReplyBroker replyBroker = null;
 		int portNumber = 5000;
 		int nReset,nRead,nDrop,nGroup,nRamp;
 
@@ -83,6 +89,9 @@ public class SetRampParamCommand extends StandardReplyCommand implements Runnabl
 		}
 		try
 		{
+			// setup some console logging
+			initialiseLogging();
+			// parse arguments
 			portNumber = Integer.parseInt(args[1]);
 			nReset = Integer.parseInt(args[2]);
 			nRead = Integer.parseInt(args[3]);
@@ -90,19 +99,23 @@ public class SetRampParamCommand extends StandardReplyCommand implements Runnabl
 			nDrop = Integer.parseInt(args[5]);
 			nRamp = Integer.parseInt(args[6]);
 			command = new SetRampParamCommand();
-			command.setAddress(args[0]);
-			command.setPortNumber(portNumber);
+			// setup telnet connection
+			command.telnetConnection.setAddress(args[0]);
+			command.telnetConnection.setPortNumber(portNumber);
 			command.setCommand(nReset,nRead,nGroup,nDrop,nRamp);
-			command.open();
+			command.telnetConnection.open();
+			// ensure reply broker is using same connection
+			replyBroker = CommandReplyBroker.getInstance();
+			replyBroker.setTelnetConnection(command.telnetConnection);
 			command.run();
-			command.close();
+			command.telnetConnection.close();
 			if(command.getRunException() != null)
 			{
 				System.err.println("Command: Command failed.");
 				command.getRunException().printStackTrace(System.err);
 				System.exit(1);
 			}
-			System.out.println("Reply:"+command.getReply());
+			System.out.println("Reply:"+command.getReplyString());
 			System.out.println("Finished:"+command.getCommandFinished());
 			System.out.println("Reply Error Code:"+command.getReplyErrorCode());
 			System.out.println("Reply Error String:"+command.getReplyErrorString());
@@ -115,6 +128,3 @@ public class SetRampParamCommand extends StandardReplyCommand implements Runnabl
 		System.exit(0);
 	}
 }
-//
-// $Log$
-//

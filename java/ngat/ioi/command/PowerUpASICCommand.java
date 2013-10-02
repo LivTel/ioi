@@ -48,18 +48,18 @@ public class PowerUpASICCommand extends StandardReplyCommand implements Runnable
 		{
 			portNumber = Integer.parseInt(args[1]);
 			command = new PowerUpASICCommand();
-			command.setAddress(args[0]);
-			command.setPortNumber(portNumber);
-			command.open();
+			command.telnetConnection.setAddress(args[0]);
+			command.telnetConnection.setPortNumber(portNumber);
+			command.telnetConnection.open();
 			command.run();
-			command.close();
+			command.telnetConnection.close();
 			if(command.getRunException() != null)
 			{
 				System.err.println("Command: Command failed.");
 				command.getRunException().printStackTrace(System.err);
 				System.exit(1);
 			}
-			System.out.println("Reply:"+command.getReply());
+			System.out.println("Reply:"+command.getReplyString());
 			System.out.println("Finished:"+command.getCommandFinished());
 			System.out.println("Reply Error Code:"+command.getReplyErrorCode());
 			System.out.println("Reply Error String:"+command.getReplyErrorString());
@@ -73,6 +73,3 @@ public class PowerUpASICCommand extends StandardReplyCommand implements Runnable
 		System.exit(0);
 	}
 }
-//
-// $Log$
-//

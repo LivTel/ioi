@@ -117,6 +117,3 @@ public class IOITCPClientConnectionThread extends TCPClientConnectionThreadMA
 		}
 	}
 }
-//
-// $Log$
-//

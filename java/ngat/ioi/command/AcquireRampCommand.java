@@ -36,6 +36,7 @@ public class AcquireRampCommand extends StandardReplyCommand implements Runnable
 	public static void main(String args[])
 	{
 		AcquireRampCommand command = null;
+		CommandReplyBroker replyBroker = null;
 		int portNumber = 5000;
 		int level;
 
@@ -46,20 +47,23 @@ public class AcquireRampCommand extends StandardReplyCommand implements Runnable
 		}
 		try
 		{
+			initialiseLogging();
 			portNumber = Integer.parseInt(args[1]);
 			command = new AcquireRampCommand();
-			command.setAddress(args[0]);
-			command.setPortNumber(portNumber);
-			command.open();
+			command.telnetConnection.setAddress(args[0]);
+			command.telnetConnection.setPortNumber(portNumber);
+			command.telnetConnection.open();
+			replyBroker = CommandReplyBroker.getInstance();
+			replyBroker.setTelnetConnection(command.telnetConnection);
 			command.run();
-			command.close();
+			command.telnetConnection.close();
 			if(command.getRunException() != null)
 			{
 				System.err.println("Command: Command failed.");
 				command.getRunException().printStackTrace(System.err);
 				System.exit(1);
 			}
-			System.out.println("Reply:"+command.getReply());
+			System.out.println("Reply:"+command.getReplyString());
 			System.out.println("Finished:"+command.getCommandFinished());
 			System.out.println("Reply Error Code:"+command.getReplyErrorCode());
 			System.out.println("Reply Error String:"+command.getReplyErrorString());
@@ -73,6 +77,3 @@ public class AcquireRampCommand extends StandardReplyCommand implements Runnable
 		System.exit(0);
 	}
 }
-//
-// $Log$
-//

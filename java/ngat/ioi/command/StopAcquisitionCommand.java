@@ -30,12 +30,25 @@ public class StopAcquisitionCommand extends StandardReplyCommand implements Runn
 	}
 
 	/**
+	 * Override default isInterruptCommand, as this command can be sent when an AcquireRamp command is
+	 * already running on the connection.
+	 * @return true.
+	 */
+	public boolean isInterruptCommand()
+	{
+		return true;
+	}
+
+
+
+	/**
 	 * Main test program.
 	 * @param args The argument list.
 	 */
 	public static void main(String args[])
 	{
 		StopAcquisitionCommand command = null;
+		CommandReplyBroker replyBroker = null;
 		int portNumber = 5000;
 		int level;
 
@@ -46,20 +59,27 @@ public class StopAcquisitionCommand extends StandardReplyCommand implements Runn
 		}
 		try
 		{
+			// setup some console logging
+			initialiseLogging();
+			// parse arguments
 			portNumber = Integer.parseInt(args[1]);
 			command = new StopAcquisitionCommand();
-			command.setAddress(args[0]);
-			command.setPortNumber(portNumber);
-			command.open();
+			// setup telnet connection
+			command.telnetConnection.setAddress(args[0]);
+			command.telnetConnection.setPortNumber(portNumber);
+			command.telnetConnection.open();
+			// ensure reply broker is using same connection
+			replyBroker = CommandReplyBroker.getInstance();
+			replyBroker.setTelnetConnection(command.telnetConnection);
 			command.run();
-			command.close();
+			command.telnetConnection.close();
 			if(command.getRunException() != null)
 			{
 				System.err.println("Command: Command failed.");
 				command.getRunException().printStackTrace(System.err);
 				System.exit(1);
 			}
-			System.out.println("Reply:"+command.getReply());
+			System.out.println("Reply:"+command.getReplyString());
 			System.out.println("Finished:"+command.getCommandFinished());
 			System.out.println("Reply Error Code:"+command.getReplyErrorCode());
 			System.out.println("Reply Error String:"+command.getReplyErrorString());
@@ -73,6 +93,3 @@ public class StopAcquisitionCommand extends StandardReplyCommand implements Runn
 		System.exit(0);
 	}
 }
-//
-// $Log$
-//

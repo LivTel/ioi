@@ -145,6 +145,3 @@ public class CommandImplementation implements JMSCommandImplementation
 	}
 }
 
-//
-// $Log$
-//

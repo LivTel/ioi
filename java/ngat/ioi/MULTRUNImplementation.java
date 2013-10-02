@@ -29,12 +29,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 */
 	public final static String RCSID = new String("$Id$");
 	/**
-	 * The telnet connection used to send IDL Socket Server commands to the socket server, by an
-	 * instance (thread) of this command.
-	 * @see ngat.net.TelnetConnection
-	 */
-	protected TelnetConnection idlTelnetConnection = null;
-	/**
 	 * This integer is set to 1 when we are using Fowler sampling to acquire data, and 0 when we are using
 	 * 'read up the ramp' to acquire data. We determine this by using a GetConfig command to see
 	 * what the 'bFS' variable to set to on the IDL Socket Server:- this is in turn set during
@@ -98,7 +92,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * <li>We initialise exposure status variables (<b>setExposureCount</b>/<b>setExposureNumber</b>/
 	 *     <b>setExposureLength</b>).
 	 * <li>It moves the fold mirror to the correct location (<b>moveFold</b>).
-	 * <li>We open connection to the IDL socket server using <b>openIDLTelnetConnection</b>.
 	 * <li>We call <b>getBFS</b>, which extracts the bFS variable from the reply to a GetConfig command,
 	 *     which tells us whether we have previously configured the array to acquire ramps using Fowler Sampling
 	 *     or Read up the Ramp.
@@ -137,13 +130,11 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * stop the implementation of this command.
 	 * @see #offsetTelescope
 	 * @see #resetTelescopeOffset
-	 * @see #openIDLTelnetConnection
 	 * @see #getBFS
 	 * @see #setFowlerSamplingParameters
 	 * @see #setReadUpTheRampParameters
 	 * @see #acquireRamp
 	 * @see #sendMultrunACK
-	 * @see #idlTelnetConnection
 	 * @see #bFS
 	 * @see CommandImplementation#testAbort
 	 * @see FITSImplementation#clearFitsHeaders
@@ -210,199 +201,180 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		}
 		// configure the array 
 		exposureLengthSeconds = ((double)(multRunCommand.getExposureTime())/1000.0);
-		try
+		// send an ACK, actually getDefaultAcknowledgeTime long
+		if(sendACK(multRunCommand,multRunDone,0) == false)
+			return multRunDone;
+		// Find out which sampling mode the array is using
+		if(!getBFS(multRunCommand,multRunDone))
+			return multRunDone;
+		if(bFS == 1)// Fowler sampling mdoe
 		{
-			// send an ACK, actually getDefaultAcknowledgeTime long
-			if(sendACK(multRunCommand,multRunDone,0) == false)
+			if(!setFowlerSamplingParameters(multRunCommand,multRunDone,exposureLengthSeconds))
 				return multRunDone;
-			// Find out which sampling mode the array is using
-			if(!openIDLTelnetConnection(multRunCommand,multRunDone))
+		}
+		else if(bFS == 0)// Read Up the Ramp mode
+		{
+			if(!setReadUpTheRampParameters(multRunCommand,multRunDone,exposureLengthSeconds))
 				return multRunDone;
-			if(!getBFS(multRunCommand,multRunDone))
-				return multRunDone;
-			if(bFS == 1)// Fowler sampling mdoe
-			{
-				if(!setFowlerSamplingParameters(multRunCommand,multRunDone,exposureLengthSeconds))
-					return multRunDone;
-			}
-			else if(bFS == 0)// Read Up the Ramp mode
-			{
-				if(!setReadUpTheRampParameters(multRunCommand,multRunDone,exposureLengthSeconds))
-					return multRunDone;
-			}
-			// do exposures
-			index = 0;
-			retval = true;
-			reduceFilenameList = new Vector();
-			while(retval&&(index < multRunCommand.getNumberExposures()))
-			{
-				// send an ACK, actually at least one exposure length + ramp overhead long
-				if(sendACK(multRunCommand,multRunDone,
-					    multRunCommand.getExposureTime()+rampOverheadTime) == false)
-				{
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					return multRunDone;
-				}
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Starting exposure "+index+".");
-				// RA/Dec Offset for sky dithering.
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Offseting telescope.");
-				if(offsetTelescope(multRunCommand,multRunDone,index) == false)
-				{
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					return multRunDone;
-				}
-				// get fits headers
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Retrieving FITS headers.");
-				clearFitsHeaders();
-				if(setFitsHeaders(multRunCommand,multRunDone,obsType,
-						  multRunCommand.getExposureTime(),
-						  multRunCommand.getNumberExposures()) == false)
-				{
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					return multRunDone;
-				}
-				if(getFitsHeadersFromISS(multRunCommand,multRunDone) == false)
-				{
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					return multRunDone;
-				}
-				if(testAbort(multRunCommand,multRunDone) == true)
-				{
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					return multRunDone;
-				}
-				if(getFitsHeadersFromBSS(multRunCommand,multRunDone) == false)
-				{
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					return multRunDone;
-				}
-				if(testAbort(multRunCommand,multRunDone) == true)
-				{
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					return multRunDone;
-				}
-				// send an ACK, at least one exposure length + ramp overhead long
-				if(sendACK(multRunCommand,multRunDone,
-					    multRunCommand.getExposureTime()+rampOverheadTime) == false)
-				{
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					return multRunDone;
-				}
-				// get a timestamp before taking an exposure
-				// we will use this to find the generated directory
-				acquireRampCommandCallTime = System.currentTimeMillis();
-				status.setExposureStartTime(acquireRampCommandCallTime);
-				status.setCurrentMode(GET_STATUS_DONE.MODE_EXPOSING);
-				// do exposure.
-				if(!acquireRamp(multRunCommand,multRunDone))
-				{
-					status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					return multRunDone;
-				}
-				// We are not really reading out, but managing the acquired data
-				status.setCurrentMode(GET_STATUS_DONE.MODE_READING_OUT);
-				// find the data just acquired
-				try
-				{
-					// diddly this can take a while. 
-					// send an ACK based on fitsFileList.size() and a per-frame annotate/rename
-					// overhead
-					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-						":processCommand:Finding ramp data.");
-					directory = findRampData(idlTelnetConnection,acquireRampCommandCallTime);
-					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-						":processCommand:Listing FITS images in Ramp Data directory "+
-						directory+".");
-					fitsFileList = findFITSFilesInDirectory(directory);
-					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-						":processCommand:Adding FITS headers to "+fitsFileList.size()+
-						" FITS images.");
-					addFitsHeadersToFitsImages(fitsFileList);
-					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					      ":processCommand:Rename generated FITS images to LT spec (if enabled).");
-					renameFitsFiles(fitsFileList,exposureCode);
-				}
-				catch(Exception e)
-				{
-					retval = false;
-					ioi.error(this.getClass().getName()+
-						  ":processCommand:Processing acquired data failed:"+command+":",e);
-					status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1201);
-					multRunDone.setErrorString(this.getClass().getName()+
-								   ":processCommand:findRampData failed:"+
-								   e.toString());
-					multRunDone.setSuccessful(false);
-					return multRunDone;
-				}
-				status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Ramp data found in directory:"+directory);
-				// for now, the returned filename is set to the directory containing the result data.
-				filename = directory;
-				// send acknowledge to say frames are completed.
-				if(!sendMultrunACK(multRunCommand,multRunDone,filename))
-				{
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					return multRunDone;
-				}
-				status.setExposureNumber(index+1);
-				// add filename to list for data pipeline processing.
-				reduceFilenameList.addAll(fitsFileList);
-				// test whether an abort has occured.
-				if(testAbort(multRunCommand,multRunDone) == true)
-				{
-					retval = false;
-				}
-				index++;
-			}// end while
-			// if a failure occurs, return now
-			if(!retval)
+		}
+		// do exposures
+		index = 0;
+		retval = true;
+		reduceFilenameList = new Vector();
+		while(retval&&(index < multRunCommand.getNumberExposures()))
+		{
+			// send an ACK, actually at least one exposure length + ramp overhead long
+			if(sendACK(multRunCommand,multRunDone,
+				   multRunCommand.getExposureTime()+rampOverheadTime) == false)
 			{
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
-		}
-		finally
-		{
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Starting exposure "+index+".");
+			// RA/Dec Offset for sky dithering.
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Offseting telescope.");
+			if(offsetTelescope(multRunCommand,multRunDone,index) == false)
+			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				return multRunDone;
+			}
+			// get fits headers
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Retrieving FITS headers.");
+			clearFitsHeaders();
+			if(setFitsHeaders(multRunCommand,multRunDone,obsType,
+					  multRunCommand.getExposureTime(),
+					  multRunCommand.getNumberExposures()) == false)
+			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				return multRunDone;
+			}
+			if(getFitsHeadersFromISS(multRunCommand,multRunDone) == false)
+			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				return multRunDone;
+			}
+			if(testAbort(multRunCommand,multRunDone) == true)
+			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				return multRunDone;
+			}
+			if(getFitsHeadersFromBSS(multRunCommand,multRunDone) == false)
+			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				return multRunDone;
+			}
+			if(testAbort(multRunCommand,multRunDone) == true)
+			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				return multRunDone;
+			}
+			// send an ACK, at least one exposure length + ramp overhead long
+			if(sendACK(multRunCommand,multRunDone,
+				   multRunCommand.getExposureTime()+rampOverheadTime) == false)
+			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				return multRunDone;
+			}
+			// get a timestamp before taking an exposure
+			// we will use this to find the generated directory
+			acquireRampCommandCallTime = System.currentTimeMillis();
+			status.setExposureStartTime(acquireRampCommandCallTime);
+			status.setCurrentMode(GET_STATUS_DONE.MODE_EXPOSING);
+			// do exposure.
+			if(!acquireRamp(multRunCommand,multRunDone))
+			{
+				status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				return multRunDone;
+			}
+			// We are not really reading out, but managing the acquired data
+			status.setCurrentMode(GET_STATUS_DONE.MODE_READING_OUT);
+			// find the data just acquired
 			try
 			{
-				idlTelnetConnection.close();
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Finding ramp data.");
+				directory = findRampData(acquireRampCommandCallTime);
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Listing FITS images in Ramp Data directory "+
+					directory+".");
+				fitsFileList = findFITSFilesInDirectory(directory);
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Adding FITS headers to "+fitsFileList.size()+
+					" FITS images.");
+				// It can take up to 2 seconds per frame to add FITS headers to each frame
+				// send an ACK to stop a timeout
+				if(sendACK(multRunCommand,multRunDone,(fitsFileList.size()*2000)) == false)
+				{
+					//moveFilterToBlank(multRunCommand,multRunDone);
+					resetTelescopeOffset(multRunCommand,multRunDone);
+					return multRunDone;
+				}
+				addFitsHeadersToFitsImages(fitsFileList);
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Rename generated FITS images to LT spec (if enabled).");
+				renameFitsFiles(fitsFileList,exposureCode);
 			}
 			catch(Exception e)
 			{
+				retval = false;
 				ioi.error(this.getClass().getName()+
-					  ":processCommand:IDL Socket Server Telnet Connection close failed:",e);
-				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1214);
-				multRunDone.setErrorString("processCommand:"+
-							   "IDL Socket Server Telnet Connection close failed:"+e);
+					  ":processCommand:Processing acquired data failed:"+command+":",e);
+				status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1201);
+				multRunDone.setErrorString(this.getClass().getName()+
+							   ":processCommand:findRampData failed:"+
+							   e.toString());
 				multRunDone.setSuccessful(false);
 				return multRunDone;
 			}
-		}
+			status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Ramp data found in directory:"+directory);
+			// for now, the returned filename is set to the directory containing the result data.
+			filename = directory;
+			// send acknowledge to say frames are completed.
+			if(!sendMultrunACK(multRunCommand,multRunDone,filename))
+			{
+				//moveFilterToBlank(multRunCommand,multRunDone);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				return multRunDone;
+			}
+			status.setExposureNumber(index+1);
+			// add filename to list for data pipeline processing.
+			reduceFilenameList.addAll(fitsFileList);
+			// test whether an abort has occured.
+			if(testAbort(multRunCommand,multRunDone) == true)
+			{
+				retval = false;
+			}
+			index++;
+		}// end while
 		//moveFilterToBlank(multRunCommand,multRunDone);
 	// reset telescope offsets
 		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 			":processCommand:Reseting telescope offset.");
 		if(resetTelescopeOffset(multRunCommand,multRunDone) == false)
 			return multRunDone;
+		// if a failure occurs, return now
+		if(!retval)
+		{
+			return multRunDone;
+		}
 		index = 0;
 		retval = true;
 	// call pipeline to process data and get results
@@ -478,36 +450,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	}
 
 	/**
-	 * Open the telnet conenction to the IDL Socket Server, by calling ioi.getIDLTelnetConnection
-	 * @param multRunCommand The MULTRUN command we are implementing.
-	 * @param multRunDone The MULTRUN_DONE command object that will be returned to the client. We set
-	 *       a sensible error message in this object if the open fails.
-	 * @return We return true if the open succeeds, and false if an error occurs.
-	 * @see #idlTelnetConnection
-	 * @see #ioi
-	 * @see ngat.ioi.IOI#getIDLTelnetConnection
-	 * @see ngat.ioi.IOI#error
-	 */
-	protected boolean openIDLTelnetConnection(MULTRUN multRunCommand,MULTRUN_DONE multRunDone)
-	{
-		try
-		{
-			idlTelnetConnection = ioi.getIDLTelnetConnection();
-		}
-		catch(Exception e)
-		{
-			ioi.error(this.getClass().getName()+
-				  ":openIDLTelnetConnection:Opening IDL Socket Server Conenction failed:"+
-				  multRunCommand,e);
-			multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1215);
-			multRunDone.setErrorString(e.toString());
-			multRunDone.setSuccessful(false);
-			return false;
-		}
-		return true;
-	}
-
-	/**
 	 * Get whether we are using fowler sampling or read up the ramp to acquire data. We do this by calling
 	 * HardwareImplementation's getFSMode, which in turn issues a GetConfig to the IDL Socket Server
 	 * and looks at the value of the 'bFS' keyword returned.
@@ -515,7 +457,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @param multRunDone The MULTRUN_DONE command object that will be returned to the client. We set
 	 *       a sensible error message in this object if this method fails.
 	 * @return We return true if the method succeeds, and false if an error occurs.
-	 * @see #idlTelnetConnection
 	 * @see #ioi
 	 * @see #bFS
 	 * @see ngat.ioi.IOI#error
@@ -525,7 +466,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	{
 		try
 		{
-			bFS = getFSMode(idlTelnetConnection);
+			bFS = getFSMode();
 		}
 		catch(Exception e)
 		{
@@ -557,7 +498,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 *        SetFSParamCommand.
 	 * @return We return true if the method succeeds, and false if an error occurs.
 	 * @see #ioi
-	 * @see #idlTelnetConnection
 	 * @see #rampOverheadTime
 	 * @see ngat.ioi.IOI#error
 	 * @see ngat.ioi.command.SetFSParamCommand
@@ -575,7 +515,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			nReset = status.getPropertyInteger("ioi.config.FOWLER.nreset");
 			nRead = status.getPropertyInteger("ioi.config.FOWLER.nread");
 			setFSParamCommand = new SetFSParamCommand();
-			setFSParamCommand.setTelnetConnection(idlTelnetConnection);
 			setFSParamCommand.setCommand(nReset,nRead,1,exposureLengthSeconds,1);
 			setFSParamCommand.sendCommand();
 			if(setFSParamCommand.getReplyErrorCode() != 0)
@@ -636,7 +575,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 *        groups.
 	 * @return We return true if the method succeeds, and false if an error occurs.
 	 * @see #ioi
-	 * @see #idlTelnetConnection
 	 * @see #rampOverheadTime
 	 * @see ngat.ioi.IOI#error
 	 * @see ngat.ioi.command.SetFSParamCommand
@@ -656,7 +594,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			nDrop = status.getPropertyInteger("ioi.config.UP_THE_RAMP.ndrop");
 			groupExecutionTime = status.getPropertyInteger("ioi.config.UP_THE_RAMP.group_execution_time");
 			setRampParamCommand = new SetRampParamCommand();
-			setRampParamCommand.setTelnetConnection(idlTelnetConnection);
 			nGroup = ((int)(exposureLengthSeconds*1000/groupExecutionTime));
 			if(nGroup < 1)
 			{
@@ -866,7 +803,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 *       a sensible error message in this object if this method fails.
 	 * @return We return true if the method succeeds, and false if an error occurs.
 	 * @see #ioi
-	 * @see #idlTelnetConnection
 	 * @see ngat.ioi.IOI#log
 	 * @see ngat.ioi.IOI#error
 	 * @see ngat.ioi.command.AcquireRampCommand
@@ -880,7 +816,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		try
 		{
 			acquireRampCommand = new AcquireRampCommand();
-			acquireRampCommand.setTelnetConnection(idlTelnetConnection);
 			acquireRampCommand.sendCommand();
 			if(acquireRampCommand.getReplyErrorCode() != 0)
 			{
@@ -920,11 +855,10 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 *      socket connection for the MULTRUN command for at least this length of time before giving up.
 	 * @return We return true if the method succeeds, and false if an error occurs.
 	 * @see #ioi
-	 * @see #idlTelnetConnection
 	 * @see #serverConnectionThread
 	 * @see ngat.ioi.IOI#log
 	 * @see ngat.ioi.IOI#error
-	 * @see ngat.message.ISS_INST.ACK
+	 * @see ngat.message.base.ACK
 	 */
 	protected boolean sendACK(MULTRUN multRunCommand,MULTRUN_DONE multRunDone,int timeToComplete)
 	{
@@ -957,7 +891,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 *       a sensible error message in this object if this method fails.
 	 * @return We return true if the method succeeds, and false if an error occurs.
 	 * @see #ioi
-	 * @see #idlTelnetConnection
 	 * @see #serverConnectionThread
 	 * @see #rampOverheadTime
 	 * @see ngat.ioi.IOI#log
@@ -989,4 +922,3 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		return true;
 	}
 }
-

@@ -94,6 +94,3 @@ public class IOIREBOOTQuitThread extends Thread
 		System.exit(exitValue);
 	}
 }
-//
-// $Log$
-//

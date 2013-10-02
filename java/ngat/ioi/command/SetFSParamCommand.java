@@ -7,6 +7,8 @@ import java.lang.*;
 import java.net.*;
 import java.text.*;
 
+import ngat.util.logging.*;
+
 /**
  * Extension of the StandardReplyCommand class for sending the SetFSParam command to the
  * IO:I IDL Socket Server. This sets the parameters for driving the array in Fowler Sampling Mode.
@@ -67,6 +69,9 @@ public class SetFSParamCommand extends StandardReplyCommand implements Runnable
 		exposureLengthString = df.format(exposureLength);
 		commandString = new String("SETFSPARAM("+nReset+", "+nRead+", "+nGroup+", "+exposureLengthString+
 					   ", "+nRamps+")");
+		logger.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+":setCommand:SETFSPARAM(nReset="+
+			   nReset+", nRead="+nRead+", nGroup="+nGroup+", exposureLength="+exposureLengthString+
+			   ", nRamps="+nRamps+")");
 	}
 
 	/**
@@ -76,6 +81,7 @@ public class SetFSParamCommand extends StandardReplyCommand implements Runnable
 	public static void main(String args[])
 	{
 		SetFSParamCommand command = null;
+		CommandReplyBroker replyBroker = null;
 		int portNumber = 5000;
 		int nReset,nRead,nGroup,nRamp;
 		double exposureLength;
@@ -87,6 +93,9 @@ public class SetFSParamCommand extends StandardReplyCommand implements Runnable
 		}
 		try
 		{
+			// setup some console logging
+			initialiseLogging();
+			// parse arguments
 			portNumber = Integer.parseInt(args[1]);
 			nReset = Integer.parseInt(args[2]);
 			nRead = Integer.parseInt(args[3]);
@@ -94,19 +103,23 @@ public class SetFSParamCommand extends StandardReplyCommand implements Runnable
 			exposureLength = Double.parseDouble(args[5]);
 			nRamp = Integer.parseInt(args[6]);
 			command = new SetFSParamCommand();
-			command.setAddress(args[0]);
-			command.setPortNumber(portNumber);
+			// setup telnet connection
+			command.telnetConnection.setAddress(args[0]);
+			command.telnetConnection.setPortNumber(portNumber);
 			command.setCommand(nReset,nRead,nGroup,exposureLength,nRamp);
-			command.open();
+			command.telnetConnection.open();
+			// ensure reply broker is using same connection
+			replyBroker = CommandReplyBroker.getInstance();
+			replyBroker.setTelnetConnection(command.telnetConnection);
 			command.run();
-			command.close();
+			command.telnetConnection.close();
 			if(command.getRunException() != null)
 			{
 				System.err.println("Command: Command failed.");
 				command.getRunException().printStackTrace(System.err);
 				System.exit(1);
 			}
-			System.out.println("Reply:"+command.getReply());
+			System.out.println("Reply:"+command.getReplyString());
 			System.out.println("Finished:"+command.getCommandFinished());
 			System.out.println("Reply Error Code:"+command.getReplyErrorCode());
 			System.out.println("Reply Error String:"+command.getReplyErrorString());
@@ -119,6 +132,3 @@ public class SetFSParamCommand extends StandardReplyCommand implements Runnable
 		System.exit(0);
 	}
 }
-//
-// $Log$
-//

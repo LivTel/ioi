@@ -5,7 +5,7 @@ include	../../../../Makefile.common
 
 PACKAGEDIR	= ngat/ioi/command
 BINDIR 		= $(IOI_BIN_HOME)/java/$(PACKAGEDIR)
-SRCS 		= Command.java StandardReplyCommand.java KeywordValueReplyCommand.java \
+SRCS 		= Command.java CommandReplyBroker.java StandardReplyCommand.java KeywordValueReplyCommand.java \
 		AcquireRampCommand.java GetConfigCommand.java InitializeCommand.java \
 		PingCommand.java PowerUpASICCommand.java PowerDownASICCommand.java SetFSModeCommand.java \
 		SetFSParamCommand.java SetIdleModeOptionCommand.java SetRampParamCommand.java \

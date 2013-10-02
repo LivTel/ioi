@@ -301,6 +301,3 @@ public class IOITCPServerConnectionThread extends TCPServerConnectionThread
 	}
 
 }
-//
-// $Log$
-//

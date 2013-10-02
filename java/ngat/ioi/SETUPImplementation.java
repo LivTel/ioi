@@ -49,7 +49,3 @@ public class SETUPImplementation extends FITSImplementation implements JMSComman
 		return setupDone;
 	}
 }
-
-//
-// $Log$
-//

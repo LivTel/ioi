@@ -54,6 +54,3 @@ public class IOIConstants
 	 */
 	public final static int IOI_DEFAULT_THREAD_PRIORITY_TIT		= Thread.MIN_PRIORITY;
 }
-//
-// $Log$
-//

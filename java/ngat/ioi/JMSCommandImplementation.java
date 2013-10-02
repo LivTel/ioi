@@ -39,7 +39,3 @@ public interface JMSCommandImplementation
 	 */
 	COMMAND_DONE processCommand(COMMAND command);
 }
-
-//
-// $Log$
-//

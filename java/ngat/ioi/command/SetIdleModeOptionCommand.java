@@ -90,6 +90,7 @@ public class SetIdleModeOptionCommand extends StandardReplyCommand implements Ru
 	public static void main(String args[])
 	{
 		SetIdleModeOptionCommand command = null;
+		CommandReplyBroker replyBroker = null;
 		int portNumber = 5000;
 		int mode;
 
@@ -101,22 +102,29 @@ public class SetIdleModeOptionCommand extends StandardReplyCommand implements Ru
 		}
 		try
 		{
+			// setup some console logging
+			initialiseLogging();
+			// parse arguments
 			portNumber = Integer.parseInt(args[1]);
 			mode = SetIdleModeOptionCommand.parseMode(args[2]);
 			command = new SetIdleModeOptionCommand();
-			command.setAddress(args[0]);
-			command.setPortNumber(portNumber);
+			// setup telnet connection
+			command.telnetConnection.setAddress(args[0]);
+			command.telnetConnection.setPortNumber(portNumber);
 			command.setCommand(mode);
-			command.open();
+			command.telnetConnection.open();
+			// ensure reply broker is using same connection
+			replyBroker = CommandReplyBroker.getInstance();
+			replyBroker.setTelnetConnection(command.telnetConnection);
 			command.run();
-			command.close();
+			command.telnetConnection.close();
 			if(command.getRunException() != null)
 			{
 				System.err.println("Command: Command failed.");
 				command.getRunException().printStackTrace(System.err);
 				System.exit(1);
 			}
-			System.out.println("Reply:"+command.getReply());
+			System.out.println("Reply:"+command.getReplyString());
 			System.out.println("Finished:"+command.getCommandFinished());
 			System.out.println("Reply Error Code:"+command.getReplyErrorCode());
 			System.out.println("Reply Error String:"+command.getReplyErrorString());
@@ -129,6 +137,3 @@ public class SetIdleModeOptionCommand extends StandardReplyCommand implements Ru
 		System.exit(0);
 	}
 }
-//
-// $Log$
-//

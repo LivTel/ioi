@@ -97,7 +97,6 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		CONFIG_DONE configDone = null;
 		IOIStatus status = null;
 		SetFSModeCommand setFSModeCommand = null;
-		TelnetConnection idlTelnetConnection = null;
 		String fsModeString = null;
 		int fsMode;
 		int filterWheelPosition;
@@ -167,9 +166,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		try
 		{
 			// configure array readout mode (fowler sample mode/read up the ramp mode)
-			idlTelnetConnection = ioi.getIDLTelnetConnection();
 			setFSModeCommand = new SetFSModeCommand();
-			setFSModeCommand.setTelnetConnection(idlTelnetConnection);
 			setFSModeCommand.setCommand(fsMode);
 			setFSModeCommand.sendCommand();
 			if(setFSModeCommand.getReplyErrorCode() != 0)
@@ -194,23 +191,6 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 			configDone.setSuccessful(false);
 			return configDone;
 		}
-		finally
-		{
-			status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
-			try
-			{
-				idlTelnetConnection.close();
-			}
-			catch(Exception e)
-			{
-				ioi.error(this.getClass().getName()+":processCommand:"+command+
-					  ":Closing IDL Socket Server Telnet Connection failed:",e);
-				configDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+808);
-				configDone.setErrorString("Closing IDL Socket Server Telnet Connection failed:"+e);
-				configDone.setSuccessful(false);
-				return configDone;
-			}
-		}
 	// send focus offset 
 		try
 		{
@@ -220,6 +200,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		{
 			ioi.error(this.getClass().getName()+":processCommand:"+
 				command+":setFocusOffset failed:",e);
+			status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
 			configDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+805);
 			configDone.setErrorString("setFocusOffset failed:"+e.toString());
 			configDone.setSuccessful(false);
@@ -235,6 +216,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		{
 			ioi.error(this.getClass().getName()+":processCommand:"+
 				  command+":Incrementing configuration ID:"+e.toString());
+			status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
 			configDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+806);
 			configDone.setErrorString("Incrementing configuration ID:"+e.toString());
 			configDone.setSuccessful(false);
@@ -243,6 +225,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 	// Store name of configuration used in status object.
 	// This is queried when saving FITS headers to get the CONFNAME value.
 		status.setConfigName(config.getId());
+		status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
 	// setup return object.
 		configDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_NO_ERROR);
 		configDone.setErrorString("");
@@ -251,6 +234,3 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		return configDone;
 	}
 }
-//
-// $Log$
-//

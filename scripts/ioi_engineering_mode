@@ -9,15 +9,6 @@
 echo "Switching to engineering mode."
 echo "This will only succeed if you are root."
 #
-# Power down the ASIC
-#
-java ngat.ioi.command.PowerDownASICCommand ioi1 5000
-set java_status = $status
-if( ${java_status} != 0 ) then
-    echo "Failed to power down ASIC."
-    exit 1
-endif
-#
 # Kill any running processes
 #
 if ( -x /icc/bin/scripts/killhup.csh ) then
@@ -31,6 +22,18 @@ if ( -x /icc/bin/scripts/killhup.csh ) then
     /icc/bin/scripts/killhup.csh icsd_inet
 else
     echo "killhup not found:ENGINEERING mode FAILED."
+endif
+#
+# Power down the ASIC
+# We can only do this AFTER killing the robotic software,
+# as this keeps the connectrion open and the IDL Socket Server will
+# only service one connection at a time.
+#
+java ngat.ioi.command.PowerDownASICCommand ioi_win 5000
+set java_status = $status
+if( ${java_status} != 0 ) then
+    echo "Failed to power down ASIC."
+    exit 1
 endif
 #
 # $Log$

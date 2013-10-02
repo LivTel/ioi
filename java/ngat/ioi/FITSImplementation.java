@@ -556,8 +556,6 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 *     </ul>
 	 * <li>The smallestDiffFile is converted into a string and returned.
 	 * </ul>
-	 * @param idlTelnetConnection The IDL Socket Server telnet connection to use for getting the
-	 *        fowler sampling mode, which is used to determine part of the directory path.
 	 * @param acquireRampCommandCallTime A timestamp taken just before the AcquireRampCommand was started.
 	 * @return A string, containing the directory containing the FITS images associated with the ACQUIRERAMP
 	 *         just executed.
@@ -567,7 +565,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * @see IOIStatus#getProperty
 	 * @see HardwareImplementation#getFSMode
 	 */
-	protected String findRampData(TelnetConnection idlTelnetConnection,long acquireRampCommandCallTime) 
+	protected String findRampData(long acquireRampCommandCallTime) 
 		throws Exception
 	{
 		Date fileDate = null;
@@ -592,7 +590,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 			   ":findRampData:root directory:"+rootDirectoryString+".");
 		// get the current configuration of the array
-		bFS = getFSMode(idlTelnetConnection);
+		bFS = getFSMode();
 		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 			   ":findRampData:getFSMode returned bFS = "+bFS+".");
 		if(bFS == 0)
@@ -943,6 +941,3 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+":setFocusOffset:Finished.");
 	}
 }
-//
-// $Log$
-//

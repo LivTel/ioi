@@ -73,7 +73,3 @@ public class INTERRUPTImplementation extends HardwareImplementation implements J
 		return interruptDone;
 	}
 }
-
-//
-// $Log$
-//

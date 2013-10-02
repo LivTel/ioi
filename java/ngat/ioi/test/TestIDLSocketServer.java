@@ -9,6 +9,7 @@ import java.util.*;
 import java.text.*;
 
 import ngat.util.*;
+import ngat.util.logging.*;
 
 /**
  * This class sets up a server socket to emulate the IO:I IDL Socket Server. This allows us to test the
@@ -72,6 +73,68 @@ public class TestIDLSocketServer
 	 * Root data directory where AcquireRamp generated pathnames start from.
 	 */
 	protected String rootDataDirectory = new String("/home/dev/tmp/data/H2RG-C001-ASIC-LT1");
+	/**
+	 * Logger to log to.
+	 */
+	Logger logger = null;
+
+	/**
+	 * Constructor.
+	 * @see #logger
+	 */
+	public TestIDLSocketServer()
+	{
+		super();
+		logger = LogManager.getLogger(this);
+	}
+
+	/**
+	 * Initialise the logger.
+	 * @see #logger
+	 * @see #copyLogHandlers
+	 */
+	protected void initialiseLogger()
+	{
+		LogHandler handler = null;
+		BogstanLogFormatter blf = null;
+
+		logger.setLogLevel(Logging.ALL);
+		blf = new BogstanLogFormatter();
+		blf.setDateFormat(new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS z"));
+		handler = new ConsoleLogHandler(blf);
+		handler.setLogLevel(Logging.ALL);
+		logger.addHandler(handler);
+		// copy logger log handlers to other relevant classes
+		//copyLogHandlers(logger,LogManager.getLogger("ngat.ioi.test.SendMultrunCommand"),null,Logging.ALL);
+	}
+
+	/**
+	 * Method to copy handlers from one logger to another. The outputLogger's channel ID is also
+	 * copied from the input logger.
+	 * @param inputLogger The logger to copy handlers from.
+	 * @param outputLogger The logger to copy handlers to.
+	 * @param lf The log filter to apply to the output logger. If this is null, the filter is not set.
+	 * @param logLevel The log level to set the logger to filter against.
+	 */
+	protected void copyLogHandlers(Logger inputLogger,Logger outputLogger,LogFilter lf,int logLevel)
+	{
+		LogHandler handlerList[] = null;
+		LogHandler handler = null;
+
+		handlerList = inputLogger.getHandlers();
+		for(int i = 0; i < handlerList.length; i++)
+		{
+			handler = handlerList[i];
+			outputLogger.addHandler(handler);
+		}
+		outputLogger.setLogLevel(inputLogger.getLogLevel());
+		if(lf != null)
+			outputLogger.setFilter(lf);
+		outputLogger.setChannelID(inputLogger.getChannelID());
+		outputLogger.setLogLevel(logLevel);
+	}
+
+
 
 	/**
 	 * Method to start the server socket, and to keep accepting conenctions, and
@@ -83,35 +146,36 @@ public class TestIDLSocketServer
 	{
 		Socket clientSocket = null;
 
-		System.out.println(this.getClass().getName()+":startServer:Started.");
-		System.out.println(this.getClass().getName()+":startServer:Creating server socket on port:"+
-				   portNumber);
+		logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":startServer:Started.");
+		logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+			   ":startServer:Creating server socket on port:"+portNumber);
 		serverSocket = new ServerSocket(portNumber); 
 		while (terminateServer == false)
 		{
-			System.out.println(this.getClass().getName()+":startServer:Waiting for a socket connection.");
+			logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				   ":startServer:Waiting for a socket connection.");
 			try
 			{
 				clientSocket = serverSocket.accept();
 			}
 			catch(IOException e)
 			{
-				System.err.println(this.getClass().getName()+
-						   ":startServer:server socket accept failed:"+e);
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":startServer:server socket accept failed:"+e);
 				e.printStackTrace();
 				clientSocket = null;
 			}
 			if(clientSocket != null)
 			{
-				System.out.println(this.getClass().getName()+
-						   ":startServer:Spawning a connection thread.");
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":startServer:Spawning a connection thread.");
 				TestIDLSocketServerConnectionThread tissct = new TestIDLSocketServerConnectionThread();
 				tissct.setServerConnectionSocket(clientSocket);
 				tissct.setParent(this);
 				tissct.start();
 			}
 		}
-		System.out.println(this.getClass().getName()+":startServer:Finished.");
+		logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":startServer:Finished.");
 	}
 
 	/**
@@ -284,6 +348,7 @@ public class TestIDLSocketServer
 	 * The main method, called when TestIDLSocketServer is executed. This initialises the object, parses
 	 * it's arguments, .
 	 * @see #parseArgs
+	 * @see #initialiseLogger
 	 * @see #startServer
 	 */
 	public static void main(String[] args)
@@ -291,6 +356,7 @@ public class TestIDLSocketServer
 		TestIDLSocketServer tiss = null;
 
 		tiss = new TestIDLSocketServer();
+		tiss.initialiseLogger();
 		try
 		{
 			tiss.parseArgs(args);
@@ -337,47 +403,50 @@ public class TestIDLSocketServer
 		 * <li>Enters a loop:
 		 *     <ul>
 		 *     <li>Reads a (command) string from the input.
-		 *     <li>Calls parseCommandLine with the input, which returns a reply
+		 *     <li>Starts a new instance of TestIDLSocketServerCommandThread, which processes the command
+		 *         string, and then returns a reply message. A second command can meanwhile be received by this
+		 *         thread (telnet connection) and processing started.
 		 *     <li>
 		 *     </ul>
+		 * <li>The loop (and thread) is terminated when the command string read is null. 
+		 *     The conenction most likely has been closed.
 		 * </ul>
 		 * @see #connectionSocket
+		 * @see TestIDLSocketServerCommandThread
 		 */
 		public void run()
 		{
+			TestIDLSocketServerCommandThread commandThread = null;
 			BufferedReader input;
 			BufferedWriter output;
 			String commandString = null;
 			String replyString = null;
 			boolean done;
 
-			System.out.println(this.getClass().getName()+":run:Start.");
+			logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":run:Start.");
 			try
 			{
-				System.out.println(this.getClass().getName()+
-						   ":run:Creating input and output readers/writers.");
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":run:Creating input and output readers/writers.");
 				input = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
 				output = new BufferedWriter(new OutputStreamWriter(connectionSocket.getOutputStream()));
 				done = false;
 				while(done == false)
 				{
-					System.out.println(this.getClass().getName()+":run:Reading input.");
+					logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+						   ":run:Reading input.");
 					commandString = input.readLine();
 					if(commandString != null)
 					{
-						System.out.println(this.getClass().getName()+
-								   ":run:Parsing command line.");
-						replyString = parseCommandLine(commandString);
-						System.out.println(this.getClass().getName()+
-								   ":run:Writing reply string.");
-						output.write(replyString);
-						System.out.println(this.getClass().getName()+
-								   ":run:Flushing output writer.");
-						output.flush();
+						commandThread = new TestIDLSocketServerCommandThread();
+						commandThread.setParent(testIDLSocketServer);
+						commandThread.setCommandString(commandString);
+						commandThread.setOutput(output);
+						commandThread.start();
 					}
 					else
 					{
-						System.out.println(this.getClass().getName()+
+						logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
 						     ":run:Command line was null:terminating connection thread.");
 						done = true;
 					}
@@ -385,10 +454,106 @@ public class TestIDLSocketServer
 			}
 			catch(Exception e)
 			{
-				System.err.println(this.getClass().getName()+":run:"+e);
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":run:"+e);
 				e.printStackTrace();
 			}
-			System.out.println(this.getClass().getName()+":run:Finish.");
+			logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":run:Finish.");
+		}
+
+	}
+
+	/**
+	 * An instance of this class is spawned by each command string received by each connection made to the server.
+	 */
+	public class TestIDLSocketServerCommandThread extends Thread
+	{
+		/**
+		 * Instance of the test program. Used for storing acquisition parameters etc, for transferring
+		 * information between commands.
+		 */
+		protected TestIDLSocketServer testIDLSocketServer = null;
+		/**
+		 * The string received in the connection thread, containing the command to be parsed and
+		 * acted upon.
+		 */
+		protected String commandString = null;
+		/**
+		 * The (buffered) output writer created by the connection thread. USed to write the command reply back
+		 * over the connection (asynchronously to the connection receiving nnew commands).
+		 */
+		protected BufferedWriter outputWriter = null;
+
+		/**
+		 * Constructor. 
+		 */
+		public TestIDLSocketServerCommandThread()
+		{
+			super();
+		}
+
+		/**
+		 * Set the parent instance.
+		 * @param tiss The parent instance of TestIDLSocketServer.
+		 * @see #testIDLSocketServer
+		 */
+		public void setParent(TestIDLSocketServer tiss)
+		{
+			testIDLSocketServer = tiss;
+		}
+
+		/**
+		 * Set the command string to be processed.
+		 * @param s The command.
+		 * @see #commandString
+		 */
+		public void setCommandString(String s)
+		{
+			commandString = s;
+		}
+
+		/**
+		 * Set the (buffered) output writer to write the command reply back to the client.
+		 * This writer is created in the connection thread.
+		 * @param o The buffered output writer.
+		 * @see #outputWriter
+		 */
+		public void setOutput(BufferedWriter o)
+		{
+			outputWriter = o;
+		}
+
+		/**
+		 * The run method to execute this thread.
+		 * <ul>
+		 * <li>The command is parsed, and executed. A reply string is returned.
+		 * <li>The reply string is sent back to the client using the outputWriter.
+		 * <li>The output writer is flushed.
+		 * </ul>
+		 * @see #parseCommandLine
+		 * @see #outputWriter
+		 */
+		public void run()
+		{
+			String replyString = null;
+
+			try
+			{
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":run:Parsing command line.");
+				replyString = parseCommandLine();
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":run:Writing reply string.");
+				outputWriter.write(replyString);
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":run:Flushing output writer.");
+				outputWriter.flush();
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":run:Flushed.");
+			}
+			catch(Exception e)
+			{
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":run:"+e);
+				e.printStackTrace();
+			}
 		}
 
 		/**
@@ -398,14 +563,15 @@ public class TestIDLSocketServer
 		 * @return A string containing the reply to send to the client over the socket connection.
 		 * @see TestIDLSocketServer#FS_MODE_DIRECTORY_FOWLER
 		 * @see TestIDLSocketServer#FS_MODE_DIRECTORY_UP_THE_RAMP
+		 * @see #commandLine
 		 */
-		public String parseCommandLine(String commandString)
+		public String parseCommandLine()
 		{
 			String replyString = null;
 			int tExp = 0;
 
-			System.out.println(this.getClass().getName()+":parseCommandLine:Started with command:"+
-					   commandString);
+			logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				   ":parseCommandLine:Started with command:"+commandString);
 			if(commandString.equals("ACQUIRERAMP"))
 			{
 				SimpleDateFormat dateFormat = null;
@@ -413,8 +579,8 @@ public class TestIDLSocketServer
 				String fsModeDirectoryString = null;
 				String leafString = null;
 
-				System.out.println(this.getClass().getName()+
-						   ":parseCommandLine:ACQUIRERAMP:Started");
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":parseCommandLine:ACQUIRERAMP:Started");
 				// create a data directory.
 				if(testIDLSocketServer.getFS() == 0)
 					fsModeDirectoryString = TestIDLSocketServer.FS_MODE_DIRECTORY_UP_THE_RAMP;
@@ -433,17 +599,17 @@ public class TestIDLSocketServer
 				leafString = dateFormat.format(new Date());
 				directory = new File(rootDataDirectory+File.separator+
 						     fsModeDirectoryString+File.separator+leafString);
-				System.out.println(this.getClass().getName()+
-						   ":parseCommandLine:ACQUIRERAMP:Creating directory:"+directory);
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":parseCommandLine:ACQUIRERAMP:Creating directory:"+directory);
 				directory.mkdir();
 				// setup global variables for abort
 				testIDLSocketServer.setAbort(false);
 				testIDLSocketServer.setAcquiringRamp(true);
 				tExp = 0;
-				System.out.println(this.getClass().getName()+
-						   ":parseCommandLine:ACQUIRERAMP:Sleeping for "+
-						   testIDLSocketServer.getExposureLength()+
-						   " milliseconds to simulate ACQUIRERAMP");
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":parseCommandLine:ACQUIRERAMP:Sleeping for "+
+					   testIDLSocketServer.getExposureLength()+
+					   " milliseconds to simulate ACQUIRERAMP");
 				// sleep for the exposure length, or until aborted
 				while((tExp < testIDLSocketServer.getExposureLength()) && 
 				      (testIDLSocketServer.getAbort() == false))
@@ -470,8 +636,8 @@ public class TestIDLSocketServer
 			}
 			else if(commandString.equals("INITIALIZE2"))
 			{
-				System.out.println(this.getClass().getName()+
-				      ":parseCommandLine:INITIALIZE2:Sleeping for 5 seconds to simulate INITIALIZE");
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				     ":parseCommandLine:INITIALIZE2:Sleeping for 5 seconds to simulate INITIALIZE");
 				try
 				{
 					Thread.sleep(5000);
@@ -537,17 +703,17 @@ public class TestIDLSocketServer
 				// SETFSPARAM(10, 5, 1, 1.0, 1)
 				for(int i = 0; i < parameterList.size(); i++ )
 				{
-					System.out.println(this.getClass().getName()+":parseCommandLine:Command:"+
-							   "SETFSPARAM Parameter:"+i+
-							   " has value "+parameterList.get(i));
+					logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+						   ":parseCommandLine:Command:SETFSPARAM Parameter:"+i+
+						   " has value "+parameterList.get(i));
 					
 				}
 				// set exposure length in milliseconds
 				// exposure length in seconds is fourth parameter:- index 3.
 				testIDLSocketServer.setExposureLength(parameterList.get(3).intValue()*1000);
-				System.out.println(this.getClass().getName()+":parseCommandLine:Command:"+
-						   "SETFSPARAM:Exposure length computed to be:"+
-						   testIDLSocketServer.getExposureLength()+" ms.");
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":parseCommandLine:Command:SETFSPARAM:Exposure length computed to be:"+
+					   testIDLSocketServer.getExposureLength()+" ms.");
 				replyString = new String("0:Set Fowler Sampling Parmeters received.\n");
 			}
 			else if (commandString.startsWith("SETRAMPPARAM"))
@@ -557,18 +723,18 @@ public class TestIDLSocketServer
 				// e.g. SETRAMPPARAM(10, 5, 0, 5, 1)
 				for(int i = 0; i < parameterList.size(); i++ )
 				{
-					System.out.println(this.getClass().getName()+":parseCommandLine:Command:"+
-							   "SETRAMPPARAM Parameter:"+i+
-							   " has value "+parameterList.get(i));
+					logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+						   ":parseCommandLine:Command:SETRAMPPARAM Parameter:"+i+
+						   " has value "+parameterList.get(i));
 					
 				}
 				// set exposure length in milliseconds
 				// ioi.config.UP_THE_RAMP.group_execution_time		=1430
 				// nGroup is third paremeter:- index 2
 				testIDLSocketServer.setExposureLength(parameterList.get(2).intValue()*1430);
-				System.out.println(this.getClass().getName()+":parseCommandLine:Command:"+
-						   "SETFSPARAM:Exposure length computed to be:"+
-						   testIDLSocketServer.getExposureLength()+" ms.");
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":parseCommandLine:Command:SETFSPARAM:Exposure length computed to be:"+
+					   testIDLSocketServer.getExposureLength()+" ms.");
 				replyString = new String("0:Set Ramp Parmeters received.\n");
 			}
 			else if (commandString.startsWith("SETWINPARAMS"))
@@ -578,9 +744,9 @@ public class TestIDLSocketServer
 
 				for(int i = 0; i < parameterList.size(); i++ )
 				{
-					System.out.println(this.getClass().getName()+":parseCommandLine:Command:"+
-							   "SETWINPARAMS Parameter:"+i+
-							   " has value "+parameterList.get(i));
+					logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+						   ":parseCommandLine:Command:SETWINPARAMS Parameter:"+i+
+						   " has value "+parameterList.get(i));
 					
 				}
 				replyString = new String("0:Set Window Parmeters received.\n");
@@ -589,25 +755,25 @@ public class TestIDLSocketServer
 			{
 				if(testIDLSocketServer.getAcquiringRamp())
 				{
-					System.out.println(this.getClass().getName()+
-							   ":parseCommandLine:STOPACQUISITION:"+
-							   "We are acquring ramp:Setting abort flag.\n");
+					logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+						   ":parseCommandLine:STOPACQUISITION:"+
+						   "We are acquring ramp:Setting abort flag.\n");
 					testIDLSocketServer.setAbort(true);
 					replyString = new String("0:Set abort flag.\n");
 				}
 				else
 				{
-					System.out.println(this.getClass().getName()+
-							   ":parseCommandLine:STOPACQUISITION:"+
-							   "We are not acquring a ramp:Returning an error\n");
+					logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+						   ":parseCommandLine:STOPACQUISITION:"+
+						   "We are not acquring a ramp:Returning an error\n");
 					replyString = new String("1:We are not acquiring a ramp:"+
 								 "STOPACQUISITION failed.\n");
 				}
 			}
 			else
 				replyString = new String("1:Unknown Command\n");
-			System.out.println(this.getClass().getName()+":parseCommandLine:Command:"+
-					   commandString+" generated reply string:"+replyString);
+			logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":parseCommandLine:Command:"+
+				   commandString+" generated reply string:"+replyString);
 			return replyString;
 		}
 
@@ -627,14 +793,14 @@ public class TestIDLSocketServer
 			sindex = commandString.indexOf('(');
 			eindex = commandString.indexOf(')');
 			parameterString = commandString.substring(sindex+1,eindex);
-			System.out.println(this.getClass().getName()+":parseParameters:Command:"+
-					   commandString+" generated parameters string:"+parameterString);
+			logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":parseParameters:Command:"+
+				   commandString+" generated parameters string:"+parameterString);
 			parameterArray = parameterString.split(",");
 			for(int i = 0; i < parameterArray.length; i++)
 			{
-				System.out.println(this.getClass().getName()+":parseParameters:Parameter "+i+
-						   " has value "+parameterArray[i]+
-						   "and trimmed value "+parameterArray[i].trim());
+				logger.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					   ":parseParameters:Parameter "+i+" has value "+parameterArray[i]+
+					   "and trimmed value "+parameterArray[i].trim());
 				parameterList.add(parameterArray[i].trim());
 			}
 			return parameterList;
@@ -685,4 +851,5 @@ public class TestIDLSocketServer
 			return numberParameterList;
 		}
 	}
+
 }

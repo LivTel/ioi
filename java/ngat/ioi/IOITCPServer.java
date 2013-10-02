@@ -59,6 +59,3 @@ public class IOITCPServer extends TCPServer
 		thread.start();
 	}
 }
-//
-// $Log$
-//

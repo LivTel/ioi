@@ -186,7 +186,7 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 				case REBOOT.LEVEL_SOFTWARE:
 				// send REBOOT to the data pipeline
 					//dprtReboot.setLevel(rebootCommand.getLevel());
-					//o.sendDpRtCommand(dprtReboot,serverConnectionThread);
+					//ioi.sendDpRtCommand(dprtReboot,serverConnectionThread);
 				// Don't check DpRt done, chances are the DpRt quit before sending the done message.
 					ioi.close();
 					quitThread = new IOIREBOOTQuitThread("quit:"+rebootCommand.getId());
@@ -259,7 +259,3 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 		return rebootDone;
 	}
 }
-
-//
-// $Log$
-//

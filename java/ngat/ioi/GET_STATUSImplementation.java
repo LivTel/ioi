@@ -235,14 +235,14 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 * @see ngat.supircam.temperaturecontroller.TemperatureController#temperatureGet
 	 * @see ngat.supircam.temperaturecontroller.TemperatureController#heaterStatusGet
 	 * @see ngat.supircam.temperaturecontroller.TemperatureController#heaterStatusToString
-	 * @see IOI#getIDLTelnetConnection
 	 * @see ngat.ioi.command.GetConfigCommand
 	 */
 	private void getIntermediateStatus()
 	{
-		TelnetConnection idlTelnetConnection = null;
-		GetConfigCommand getConfigCommand = null;
+		PingCommand pingCommand = null;
+		Hashtable cachedGetConfigCommand = null;
 		Enumeration keywords = null;
+		Date cachedGetConfigCommandTimestamp = null;
 		String heaterStatusString = null;
 		double ccdTemperature[] = {0.0,0.0};
 		int heaterStatus;
@@ -253,41 +253,41 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		// call GET_CONFIG IDL server command to get array configuration
 		try
 		{
-			idlTelnetConnection = ioi.getIDLTelnetConnection();
-			getConfigCommand = new GetConfigCommand();
-			getConfigCommand.setTelnetConnection(idlTelnetConnection);
-			getConfigCommand.sendCommand();
+			pingCommand = new PingCommand();
+			pingCommand.sendCommand();
 		}
 		catch(Exception e)
 		{
 			ioi.error(this.getClass().getName()+":getIntermediateStatus:"+
-			      "GetConfig command failed:",e);
+			      "Ping command failed:",e);
 		}
-		finally
+		switch(pingCommand.getReplyErrorCode())
 		{
-			try
-			{
-				idlTelnetConnection.close();
-			}
-			catch(Exception e)
-			{
-				ioi.error(this.getClass().getName()+":getIntermediateStatus:"+
-					  "Closing IDL Socket Server Telnet Connection failed:",e);
-			}
+			case 0:
+				hashTable.put("Ping","Idle");
+				break;
+			case -1:
+				hashTable.put("Ping","Exposure in progress");
+				break;
+			default:
+				hashTable.put("Ping","Unknown value:"+pingCommand.getReplyErrorCode());
+				break;
 		}
-		if(getConfigCommand.getReplyErrorCode() != 0)
+		// copy GetConfig cache into hashtable
+		cachedGetConfigCommand = status.getCachedGetConfigCommand();
+		cachedGetConfigCommandTimestamp = status.getCachedGetConfigCommandTimestamp();
+		if(cachedGetConfigCommand != null)
 		{
-			ioi.error(this.getClass().getName()+":getIntermediateStatus:GetConfig failed:"+
-				  getConfigCommand.getReplyErrorCode()+":"+
-				  getConfigCommand.getReplyErrorString());
+			hashTable.putAll(cachedGetConfigCommand);
+			hashTable.put("GetConfig Cache Timestamp",cachedGetConfigCommandTimestamp);
 		}
-		keywords = getConfigCommand.getKeywords();
-		while(keywords.hasMoreElements())
-		{
-			String keyword = (String)(keywords.nextElement());
-			String value = getConfigCommand.getValue(keyword);
-			hashTable.put(keyword,value);
-		}
+		//keywords = getConfigCommand.getKeywords();
+		//while(keywords.hasMoreElements())
+		//{
+		//	String keyword = (String)(keywords.nextElement());
+		//	String value = getConfigCommand.getValue(keyword);
+		//	hashTable.put(keyword,value);
+		//}
 		// Is temperature control enabled?
 		try
 		{
@@ -515,7 +515,3 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	}
 
 }
-
-//
-// $Log$
-//

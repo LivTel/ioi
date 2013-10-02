@@ -2,7 +2,8 @@
 # $HeadURL$
 # ( ./ioi_soak_test > ioi_soak_test_output_20130913.txt ) >& ioi_soak_test_error_20130913.txt
 set ioi_address = "ioi_linux"
-set ioi_port = 8472
+#set ioi_address = "ltobs9"
+set ioi_port = 7373
 set exposure_length_list = "1000 2000 5000 10000 30000 60000 120000"
 set exposure_count_list = "1 3 5 9"
 #if ( -r /home/dev/bin/ioi/test/SendMultrunCommand.class ) then
@@ -16,6 +17,7 @@ set exposure_count_list = "1 3 5 9"
 set done = 0
 set config_count = 0
 set multrun_count = 0
+set acquire_ramp_count = 0
 date -u
 echo "Starting test"
 while ( ${done} == 0 )
@@ -42,8 +44,9 @@ while ( ${done} == 0 )
 				exit 1
 			endif
 			@ multrun_count ++
+			@ acquire_ramp_count += ${exposure_count}
 			date -u	
-			echo "Completed ${config_count} CONFIG commands and ${multrun_count} MULTRUN commands."
+			echo "Completed ${config_count} CONFIG commands and ${multrun_count} MULTRUN commands with ${acquire_ramp_count} AcquireRamps (exposures)."
 		end
 	end
 end

@@ -71,7 +71,6 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 	{
 		BIAS biasCommand = (BIAS)command;
 		BIAS_DONE biasDone = new BIAS_DONE(command.getId());
-		TelnetConnection idlTelnetConnection = null;
 		SetFSParamCommand setFSParamCommand = null;
 		SetRampParamCommand setRampParamCommand = null;
 		AcquireRampCommand acquireRampCommand = null;
@@ -90,8 +89,7 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 		// Find out which sampling mode the array is using
 		try
 		{
-			idlTelnetConnection = ioi.getIDLTelnetConnection();
-			bFS = getFSMode(idlTelnetConnection);
+			bFS = getFSMode();
 		}
 		catch(Exception e)
 		{
@@ -111,7 +109,6 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 				nReset = status.getPropertyInteger("ioi.config.FOWLER.nreset");
 				nRead = status.getPropertyInteger("ioi.config.FOWLER.nread");
 				setFSParamCommand = new SetFSParamCommand();
-				setFSParamCommand.setTelnetConnection(idlTelnetConnection);
 				// 1 group, 0.0 exposure length, 1 ramp
 				setFSParamCommand.setCommand(nReset,nRead,1,0.0,1);
 				setFSParamCommand.sendCommand();
@@ -120,7 +117,6 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 					ioi.error(this.getClass().getName()+":processCommand:SetFSParam failed:"+
 						  setFSParamCommand.getReplyErrorCode()+":"+
 						  setFSParamCommand.getReplyErrorString());
-					idlTelnetConnection.close();
 					biasDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+701);
 					biasDone.setErrorString("processCommand:SetFSParam failed:"+
 								setFSParamCommand.getReplyErrorCode()+":"+
@@ -133,7 +129,6 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 			{
 				ioi.error(this.getClass().getName()+
 					  ":processCommand:SetFSParam failed:"+command,e);
-				//idlTelnetConnection.close();
 				biasDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+702);
 				biasDone.setErrorString(":processCommand:SetFSParam failed:"+e);
 				biasDone.setSuccessful(false);
@@ -151,7 +146,6 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 				nDrop = status.getPropertyInteger("ioi.config.UP_THE_RAMP.ndrop");
 				groupExecutionTime = status.getPropertyInteger("ioi.config.UP_THE_RAMP.group_execution_time");
 				setRampParamCommand = new SetRampParamCommand();
-				setRampParamCommand.setTelnetConnection(idlTelnetConnection);
 				nGroup = 1;
 				// 1 group, 1 ramp
 				setRampParamCommand.setCommand(nReset,nRead,1,nDrop,1);
@@ -163,7 +157,6 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 					ioi.error(this.getClass().getName()+":processCommand:SetRampParam failed:"+
 						  setRampParamCommand.getReplyErrorCode()+":"+
 						  setRampParamCommand.getReplyErrorString());
-					idlTelnetConnection.close();
 					biasDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+703);
 					biasDone.setErrorString("processCommand:SetRampParam failed:"+
 								setRampParamCommand.getReplyErrorCode()+":"+
@@ -176,7 +169,6 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 			{
 				ioi.error(this.getClass().getName()+
 					  ":processCommand:SetRampParam failed:"+command,e);
-				//idlTelnetConnection.close();
 				biasDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+704);
 				biasDone.setErrorString("processCommand:SetRampParam failed:"+e);
 				biasDone.setSuccessful(false);
@@ -190,27 +182,22 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 		clearFitsHeaders();
 		if(setFitsHeaders(biasCommand,biasDone,FitsHeaderDefaults.OBSTYPE_VALUE_BIAS,0) == false)
 		{
-			//idlTelnetConnection.close();
 			return biasDone;
 		}
 		if(getFitsHeadersFromISS(biasCommand,biasDone) == false)
 		{
-			//idlTelnetConnection.close();
 			return biasDone;
 		}
 		if(testAbort(biasCommand,biasDone) == true)
 		{
-			//idlTelnetConnection.close();
 			return biasDone;
 		}
 		if(getFitsHeadersFromBSS(biasCommand,biasDone) == false)
 		{
-			//idlTelnetConnection.close();
 			return biasDone;
 		}
 		if(testAbort(biasCommand,biasDone) == true)
 		{
-			//idlTelnetConnection.close();
 			return biasDone;
 		}
 		// get a timestamp before taking an exposure
@@ -222,14 +209,12 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Acquiring ramp.");
 			acquireRampCommand = new AcquireRampCommand();
-			acquireRampCommand.setTelnetConnection(idlTelnetConnection);
 			acquireRampCommand.sendCommand();
 			if(acquireRampCommand.getReplyErrorCode() != 0)
 			{
 				ioi.error(this.getClass().getName()+":processCommand:AcquireRamp failed:"+
 					  acquireRampCommand.getReplyErrorCode()+":"+
 					  acquireRampCommand.getReplyErrorString());
-				//idlTelnetConnection.close();
 				biasDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+705);
 				biasDone.setErrorString("processCommand:AcquireRamp failed:"+
 							acquireRampCommand.getReplyErrorCode()+":"+
@@ -242,7 +227,6 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 		{
 			ioi.error(this.getClass().getName()+
 				  ":processCommand:AcquireRampCommand failed:"+command+":",e);
-			//idlTelnetConnection.close();
 			biasDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+706);
 			biasDone.setErrorString("processCommand:AcquireRampCommand failed:"+e);
 			biasDone.setSuccessful(false);
@@ -253,13 +237,12 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 		{
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Finding ramp data.");
-			directory = findRampData(idlTelnetConnection,acquireRampCommandCallTime);
+			directory = findRampData(acquireRampCommandCallTime);
 		}
 		catch(Exception e)
 		{
 			ioi.error(this.getClass().getName()+
 				  ":processCommand:findRampData failed:"+command+":"+e.toString());
-			//idlTelnetConnection.close();
 			biasDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+707);
 			biasDone.setErrorString(e.toString());
 			biasDone.setSuccessful(false);
@@ -269,19 +252,6 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 			":processCommand:Ramp data found in directory:"+directory);
 		// for now, the returned filename is set to the directory containing the result data set.
 		filename = directory;
-		try
-		{
-			idlTelnetConnection.close();
-		}
-		catch(Exception e)
-		{
-			ioi.error(this.getClass().getName()+
-				  ":processCommand:IDL Socket Server Telnet Connection close failed:",e);
-			biasDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+708);
-			biasDone.setErrorString("processCommand:IDL Socket Server Telnet Connection close failed:"+e);
-			biasDone.setSuccessful(false);
-			return biasDone;
-		}
 		biasDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_NO_ERROR);
 		biasDone.setErrorString("");
 		biasDone.setSuccessful(true);
@@ -291,6 +261,3 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 		return biasDone;
 	}
 }
-//
-// $Log$
-//

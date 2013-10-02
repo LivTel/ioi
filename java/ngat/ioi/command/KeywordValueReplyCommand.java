@@ -185,6 +185,7 @@ public class KeywordValueReplyCommand extends StandardReplyCommand implements Ru
 	public static void main(String args[])
 	{
 		KeywordValueReplyCommand command = null;
+		CommandReplyBroker replyBroker = null;
 		int portNumber = 1234;
 
 		if(args.length != 3)
@@ -194,21 +195,28 @@ public class KeywordValueReplyCommand extends StandardReplyCommand implements Ru
 		}
 		try
 		{
+			// setup some console logging
+			initialiseLogging();
+			// parse arguments
 			portNumber = Integer.parseInt(args[1]);
 			command = new KeywordValueReplyCommand();
-			command.setAddress(args[0]);
-			command.setPortNumber(portNumber);
+			// setup telnet connection
+			command.telnetConnection.setAddress(args[0]);
+			command.telnetConnection.setPortNumber(portNumber);
 			command.setCommand(args[2]);
-			command.open();
+			command.telnetConnection.open();
+			// ensure reply broker is using same connection
+			replyBroker = CommandReplyBroker.getInstance();
+			replyBroker.setTelnetConnection(command.telnetConnection);
 			command.run();
-			command.close();
+			command.telnetConnection.close();
 			if(command.getRunException() != null)
 			{
 				System.err.println("Command: Command "+args[2]+" failed.");
 				command.getRunException().printStackTrace(System.err);
 				System.exit(1);
 			}
-			System.out.println("Reply:"+command.getReply());
+			System.out.println("Reply:"+command.getReplyString());
 			System.out.println("Finished:"+command.getCommandFinished());
 			System.out.println("Reply Error Code:"+command.getReplyErrorCode());
 			if(command.getReplyErrorCode() != 0)
@@ -234,6 +242,3 @@ public class KeywordValueReplyCommand extends StandardReplyCommand implements Ru
 		System.exit(0);
 	}
 }
-//
-// $Log$
-//
