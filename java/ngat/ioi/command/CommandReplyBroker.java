@@ -251,25 +251,25 @@ public class CommandReplyBroker implements Runnable
 					}// end while
 				}
 				// if there is an interrupt command awaiting a reply, give the reply to that
-				logger.log(Logging.VERBOSITY_VERY_VERBOSE,
-					   this.getClass().getName()+
-					   ":run:Looking for an interrupt command instance for reply string:"+
-					   replyString);
-				int index = 0; 
-				while((processedReply == false) &&(index < commandList.size()))
-				{
-					command = commandList.get(index);
-					if(command.isInterruptCommand())
-					{
-						logger.log(Logging.VERBOSITY_VERY_VERBOSE,
-							   this.getClass().getName()+
-							  ":run:Found an interrupt command instance for reply string:"+
-							   replyString);
-						sendReplyToCommand(replyString,command,index);
-						processedReply = true;
-					}// end if interrupt command
-					index++;
-				}
+				//logger.log(Logging.VERBOSITY_VERY_VERBOSE,
+				//	   this.getClass().getName()+
+				//	   ":run:Looking for an interrupt command instance for reply string:"+
+				//	   replyString);
+				//int index = 0; 
+				//while((processedReply == false) &&(index < commandList.size()))
+				//{
+				//	command = commandList.get(index);
+				//	if(command.isInterruptCommand())
+				//	{
+				//		logger.log(Logging.VERBOSITY_VERY_VERBOSE,
+				//			   this.getClass().getName()+
+				//			  ":run:Found an interrupt command instance for reply string:"+
+				//			   replyString);
+				//		sendReplyToCommand(replyString,command,index);
+				//		processedReply = true;
+				//	}// end if interrupt command
+				//	index++;
+				//}
 				// if no interrupt command has been found, give the reply to
 				// the first index in the list, if it exists
 				if(processedReply == false)

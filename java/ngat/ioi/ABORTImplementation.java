@@ -119,15 +119,28 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 			}
 			if(stopAcquisitionCommand.getReplyErrorCode() != 0)
 			{
-				ioi.error(this.getClass().getName()+":processCommand:StopAcquisition failed:"+
-					  stopAcquisitionCommand.getReplyErrorCode()+":"+
-					  stopAcquisitionCommand.getReplyErrorString());
-				abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2400);
-				abortDone.setErrorString("processCommand:StopAcquisition failed:"+
-							 stopAcquisitionCommand.getReplyErrorCode()+":"+
-							 stopAcquisitionCommand.getReplyErrorString());
-				abortDone.setSuccessful(false);
-				return abortDone;
+				if((stopAcquisitionCommand.getReplyErrorCode() == 1)&&
+				   (stopAcquisitionCommand.getReplyErrorString().
+				    equals("Acquiring ramp failed. Science data acquisition was stopped.")))
+				{
+					ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+						":processCommand:StopAcquisition returned error code "+
+						stopAcquisitionCommand.getReplyErrorCode()+" and error string:"+
+						stopAcquisitionCommand.getReplyErrorString()+
+						": This probably means it worked.");
+				}
+				else
+				{
+					ioi.error(this.getClass().getName()+":processCommand:StopAcquisition failed:"+
+						  stopAcquisitionCommand.getReplyErrorCode()+":"+
+						  stopAcquisitionCommand.getReplyErrorString());
+					abortDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+2400);
+					abortDone.setErrorString("processCommand:StopAcquisition failed:"+
+								 stopAcquisitionCommand.getReplyErrorCode()+":"+
+								 stopAcquisitionCommand.getReplyErrorString());
+					abortDone.setSuccessful(false);
+					return abortDone;
+				}
 			}
 		}
 		else
