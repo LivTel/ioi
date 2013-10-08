@@ -121,7 +121,7 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 			{
 				if((stopAcquisitionCommand.getReplyErrorCode() == 1)&&
 				   (stopAcquisitionCommand.getReplyErrorString().
-				    equals("Acquiring ramp failed. Science data acquisition was stopped.")))
+				    contains("Acquiring ramp failed. Science data acquisition was stopped.")))
 				{
 					ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
 						":processCommand:StopAcquisition returned error code "+
