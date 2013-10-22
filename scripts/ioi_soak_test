@@ -1,7 +1,8 @@
 #!/bin/csh
 # $HeadURL$
 # ( ./ioi_soak_test > ioi_soak_test_output_20130913.txt ) >& ioi_soak_test_error_20130913.txt
-set ioi_address = "ioi_linux"
+set ioi_address = "ioi_host"
+#set ioi_address = "ioi_linux"
 #set ioi_address = "ltobs9"
 set ioi_port = 7373
 set exposure_length_list = "1000 2000 5000 10000 30000 60000 120000"

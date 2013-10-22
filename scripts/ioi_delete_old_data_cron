@@ -1,7 +1,8 @@
 #!/bin/csh
 # $HeadURL$
 # Cron job script to delete old data from the disk to stop the test machine filling up.
-set directory = /data/H2RG-C001-ASIC-LT1/FSRamp/
+set directory = /icc/i-data/H2RG-C001-ASIC-LT1/FSRamp/
+#set directory = /data/H2RG-C001-ASIC-LT1/FSRamp/
 set max_file_age = 3600
 /bin/ls ${directory} > /tmp/ioi_delete_old_data_cron_directory_list.txt
 foreach sub_directory ( `cat /tmp/ioi_delete_old_data_cron_directory_list.txt` )

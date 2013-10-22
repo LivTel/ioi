@@ -8,7 +8,7 @@ BINDIR 		= $(IOI_BIN_HOME)/java/$(PACKAGEDIR)
 SRCS 		= Command.java CommandReplyBroker.java StandardReplyCommand.java KeywordValueReplyCommand.java \
 		AcquireRampCommand.java GetConfigCommand.java InitializeCommand.java \
 		PingCommand.java PowerUpASICCommand.java PowerDownASICCommand.java SetFSModeCommand.java \
-		SetFSParamCommand.java SetIdleModeOptionCommand.java SetRampParamCommand.java \
+		SetFSParamCommand.java SetIdleModeOptionCommand.java SetDetectorCommand.java SetRampParamCommand.java \
 		SetWindowModeCommand.java SetWinParamsCommand.java StopAcquisitionCommand.java
 OBJS 		= $(SRCS:%.java=$(BINDIR)/%.class)
 

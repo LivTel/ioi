@@ -227,17 +227,23 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			if(sendACK(multRunCommand,multRunDone,
 				   multRunCommand.getExposureTime()+rampOverheadTime) == false)
 			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":processCommand:sendACK failed for index "+index+
+					" : Reseting telescope offset.");
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Starting exposure "+index+".");
+				":processCommand:Starting exposure "+index+" of length "+exposureLengthSeconds+"s.");
 			// RA/Dec Offset for sky dithering.
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Offseting telescope.");
 			if(offsetTelescope(multRunCommand,multRunDone,index) == false)
 			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":processCommand:offsetTelescope failed for index "+index+
+					" : Reseting telescope offset.");
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
@@ -250,30 +256,45 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					  multRunCommand.getExposureTime(),
 					  multRunCommand.getNumberExposures()) == false)
 			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":processCommand:setFitsHeaders failed for index "+index+
+					" : Reseting telescope offset.");
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			if(getFitsHeadersFromISS(multRunCommand,multRunDone) == false)
 			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":processCommand:getFitsHeadersFromISS failed for index "+index+
+					" : Reseting telescope offset.");
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			if(testAbort(multRunCommand,multRunDone) == true)
 			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":processCommand:testAbort failed for index "+index+
+					" : Reseting telescope offset.");
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			if(getFitsHeadersFromBSS(multRunCommand,multRunDone) == false)
 			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":processCommand:getFitsHeadersFromBSS failed for index "+index+
+					" : Reseting telescope offset.");
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			if(testAbort(multRunCommand,multRunDone) == true)
 			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":processCommand:testAbort failed for index "+index+
+					" : Reseting telescope offset.");
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
@@ -282,18 +303,27 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			if(sendACK(multRunCommand,multRunDone,
 				   multRunCommand.getExposureTime()+rampOverheadTime) == false)
 			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":processCommand:sendACK failed for index "+index+
+					" : Reseting telescope offset.");
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			// get a timestamp before taking an exposure
 			// we will use this to find the generated directory
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Calling AcquireRamp of length "+exposureLengthSeconds+
+				"s for exposure index "+index+".");
 			acquireRampCommandCallTime = System.currentTimeMillis();
 			status.setExposureStartTime(acquireRampCommandCallTime);
 			status.setCurrentMode(GET_STATUS_DONE.MODE_EXPOSING);
 			// do exposure.
 			if(!acquireRamp(multRunCommand,multRunDone))
 			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":processCommand:acquireRamp failed for index "+index+
+					" : Reseting telescope offset.");
 				status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
@@ -305,7 +335,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			try
 			{
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Finding ramp data.");
+					":processCommand:Finding ramp data for exposure index "+index+".");
 				directory = findRampData(acquireRampCommandCallTime);
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":processCommand:Listing FITS images in Ramp Data directory "+
@@ -318,6 +348,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				// send an ACK to stop a timeout
 				if(sendACK(multRunCommand,multRunDone,(fitsFileList.size()*2000)) == false)
 				{
+					ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+						":processCommand:sendACK failed for index "+index+
+						" : Reseting telescope offset.");
 					//moveFilterToBlank(multRunCommand,multRunDone);
 					resetTelescopeOffset(multRunCommand,multRunDone);
 					return multRunDone;
@@ -331,7 +364,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			{
 				retval = false;
 				ioi.error(this.getClass().getName()+
-					  ":processCommand:Processing acquired data failed:"+command+":",e);
+					  ":processCommand:Processing acquired data for exposure index "+index+
+					  " failed:"+command+":",e);
 				status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
@@ -344,12 +378,16 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			}
 			status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Ramp data found in directory:"+directory);
+				":processCommand:Ramp data found in directory:"+directory+" for exposure index "+
+				index+".");
 			// for now, the returned filename is set to the directory containing the result data.
 			filename = directory;
 			// send acknowledge to say frames are completed.
 			if(!sendMultrunACK(multRunCommand,multRunDone,filename))
 			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":processCommand:sendMultrunACK failed for index "+index+
+					" : Reseting telescope offset.");
 				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
@@ -865,7 +903,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		ACK ack = null;
 
 		// send acknowledge to say frames are completed.
-		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":sendACK:Sending ACK.");
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":sendACK:Sending ACK with timeToComplete "+timeToComplete+" and default ACK time "+
+			timeToComplete+serverConnectionThread.getDefaultAcknowledgeTime());
 		ack = new ACK(multRunCommand.getId());
 		ack.setTimeToComplete(timeToComplete+serverConnectionThread.getDefaultAcknowledgeTime());
 		try

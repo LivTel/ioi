@@ -559,11 +559,10 @@ public class TestIDLSocketServer
 		/**
 		 * Method to examine each newline terminated command sent over the connection, and generate
 		 * a suitable (fake) reply.
-		 * @param commandString The command to be parsed.
 		 * @return A string containing the reply to send to the client over the socket connection.
 		 * @see TestIDLSocketServer#FS_MODE_DIRECTORY_FOWLER
 		 * @see TestIDLSocketServer#FS_MODE_DIRECTORY_UP_THE_RAMP
-		 * @see #commandLine
+		 * @see #commandString
 		 */
 		public String parseCommandLine()
 		{

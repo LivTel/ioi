@@ -136,6 +136,12 @@ public class IOI
 	 * The interface class to the temperature controller.
 	 */
 	protected TemperatureController tempControl = null;
+	/**
+	 * This obect is a thread that is started independently of any robotic command invocations.
+	 * It monitors the ASIC temperature and if it gets too warm, issues a PowerDownASIC command
+	 * to the IDL socket server to turn off power to the ASIC and stop it overheating in a vacuum.
+	 */
+	protected SidecarTemperatureProtectionThread sidecarTemperatureProtectionThread = null;
 
 	/**
 	 * init method.
@@ -813,17 +819,23 @@ public class IOI
 
 	/**
 	 * Method to setup a connection to the IDL socket server, and the temperature controller.
-	 * The connection is then made and an 'Initialize2' command sent to the server.
 	 * <ul>
 	 * <li>The property "ioi.idl.hostname" is retrieved.
 	 * <li>The property "ioi.idl.port_number" is retrieved.
-	 * <li>idlTelnetConnection is constructed, and it's hostname and port number is set using the above properties.
-	 * <li>The telnet conenction is opened.
+	 * <li>idlTelnetConnection is constructed, and it's hostname and port number is set using the above properties,
+	 *     and is thyen opened.
+	 * <li>The singleton instance of CommandReplyBroker is created/retrieved, and the telnet connection set to
+	 *     idlTelnetConnection.
 	 * <li>The property "ioi.idl.initialize.level" is retrieved.
-	 * <li>An instance of InitializeCommand is created, the level set to the property retrirvrf above, and
-	 *     the telnet connection set to idlTelnetConnection.
+	 * <li>An instance of InitializeCommand is created, and the level set to the property retrieved above.
 	 * <li>The InitializeCommand's sendCommand method is called to invoke the Initialize command, and retrieve
-	 *     and parse the reply.
+	 *     and parse the reply (via the CommandReplyBroker instance).
+	 * <li>We retrieve SetDetector parameter data from the "ioi.idl.set_detector.mux_type" and 
+	 *     "ioi.idl.set_detector.num_outputs" properties.
+	 * <li>We create and set the command parameters of an instance of SetDetectorCommand, using the properties
+	 *     retrieved above.
+	 * <li>We send the SetDetector command to the IDL Socket Server, retrieve and check the reply 
+	 *     (via the CommandReplyBroker instance).
 	 * <li>If the temperature controller is enabled, the socket device is opened, 
 	 *     the target temperature is set, the heater range is configured, and the display brightness set.
 	 * </ul>
@@ -832,6 +844,7 @@ public class IOI
 	 * @see #idlTelnetConnection
 	 * @see #tempControl
 	 * @see #status
+	 * @see #startSidecarTemperatureProteectionThread
 	 * @see IOIStatus#getProperty
 	 * @see IOIStatus#getPropertyBoolean
 	 * @see IOIStatus#getPropertyInteger
@@ -849,10 +862,13 @@ public class IOI
 	public void startupController() throws TemperatureControllerNativeException, Exception
 	{
 		InitializeCommand initializeCommand = null;
+		SetDetectorCommand setDetectorCommand = null;
 		CommandReplyBroker replyBroker = null;
 		String idlHostname = null;
 		int idlPortNumber = 0;
 		int initializeLevel = 2;
+		String muxTypeString = null;
+		int muxType,nOutputs;
 		boolean tempControlEnable;
 		String tempControlDeviceType = null;
 		String tempControlSocketAddress = null;
@@ -883,6 +899,7 @@ public class IOI
 		// initialise the sidecar and jade
 		try
 		{
+			// Initialize2
 			initializeLevel = status.getPropertyInteger("ioi.idl.initialize.level");
 			log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			    ":startupController:Initialising Sidecar with level "+initializeLevel+".");
@@ -895,6 +912,7 @@ public class IOI
 				// We can fix this by issuing a Initialize3 command.
 				if(initializeCommand.getReplyErrorCode() == 1)
 				{
+					// Initialize3
 					log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 					    ":startupController:Initialize"+initializeLevel+
 					    " failed, trying Initialze3 to start IDE/HAL server.");
@@ -910,10 +928,40 @@ public class IOI
 							    initializeCommand.getReplyErrorString());
 				}
 			}// end if first initialise2 failed
+			log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			    ":startupController:Initialising Sidecar finished.");
 		}
 		catch(Exception e)
 		{
 			error(this.getClass().getName()+":startupController:Initialze failed:",e);
+			throw e;
+		}
+		try
+		{
+			log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			    ":startupController:Set Detector.");
+			// setdetector
+			setDetectorCommand = new SetDetectorCommand();
+			muxTypeString = status.getProperty("ioi.idl.set_detector.mux_type");
+			muxType = SetDetectorCommand.parseMuxType(muxTypeString);
+			nOutputs = status.getPropertyInteger("ioi.idl.set_detector.num_outputs");
+			setDetectorCommand.setCommand(muxType,nOutputs);
+			log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			    ":startupController:Sending SetDetector("+muxTypeString+","+nOutputs+").");
+			setDetectorCommand.sendCommand();
+			if(setDetectorCommand.getReplyErrorCode() != 0)
+			{
+				throw new Exception(this.getClass().getName()+
+						    ":startupController:SetDetector("+muxTypeString+","+nOutputs+
+						    ") failed:"+setDetectorCommand.getReplyErrorCode()+":"+
+						    setDetectorCommand.getReplyErrorString());
+			}
+			log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			    ":startupController:Set Detector finished.");
+		}
+		catch(Exception e)
+		{
+			error(this.getClass().getName()+":startupController:SetDetector failed:",e);
 			throw e;
 		}
 		// temperature controller
@@ -966,16 +1014,21 @@ public class IOI
 			error(this.getClass().getName()+":startupController:Temperature Controller:",e);
 			throw e;
 		}
+		// sidecar temperature protection thread.
+		// we can only do this after the sidecar has been initialised, and the temperature controller setup.
+		startSidecarTemperatureProteectionThread();
 	}
 
 	/**
 	 * Method to shutdown the low level software using the IDL socket server.
+	 * We stop the sidecar temperature protection thread.
 	 * The PowerDownASIC command is sent to the IDL socket server.
 	 * The connection to the IDL socket server is then closed.
 	 * If enabled, the temperature controller socket is also closed.
 	 * @see #idlTelnetConnection
 	 * @see #tempControl
 	 * @see #status
+	 * @see #sidecarTemperatureProtectionThread
 	 * @see ngat.ioi.command.PowerDownASICCommand
 	 * @exception Exception Thrown if the IDL server cannot be contacted, the PowerDownASIC command fails,
 	 *            or the PowerDownASIC command returns an error.
@@ -985,6 +1038,8 @@ public class IOI
 		PowerDownASICCommand powerDownASICCommand = null;
 		boolean tempControlEnable;
 
+		// stop the temperature protection thread
+		sidecarTemperatureProtectionThread.stopThread();
 		// power down the ASIC
 		powerDownASICCommand = new PowerDownASICCommand();
 		powerDownASICCommand.sendCommand();
@@ -1002,6 +1057,19 @@ public class IOI
 		{
 			tempControl.socketClose();
 		}
+	}
+
+	/**
+	 * Start the sidecar temperature protection thread.
+	 * @exception Exception Thrown if the init method fails (retrieving config fails).
+	 * @see #sidecarTemperatureProtectionThread
+	 */
+	protected void startSidecarTemperatureProteectionThread() throws Exception
+	{
+		sidecarTemperatureProtectionThread = new SidecarTemperatureProtectionThread();
+		sidecarTemperatureProtectionThread.setIOI(this);
+		sidecarTemperatureProtectionThread.init();
+		sidecarTemperatureProtectionThread.start();
 	}
 
 	/**

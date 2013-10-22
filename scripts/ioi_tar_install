@@ -52,22 +52,24 @@ if ( -x /icc/bin/scripts/killhup.csh ) then
 else
     echo "killhup not found:FAILED to stop running processess."
 endif
-#
-# Power down the ASIC
-# We can only do this AFTER killing the robotic software,
-# as this keeps the connectrion open and the IDL Socket Server will
-# only service one connection at a time.
-#
-java ngat.ioi.command.PowerDownASICCommand ioi_win 5000
-set java_status = $status
-if( ${java_status} != 0 ) then
-    echo "Failed to power down ASIC."
-    exit 1
+if( -r /icc/bin/javalib/ngat_io_i.jar ) then
+    #
+    # Power down the ASIC
+    # We can only do this AFTER killing the robotic software,
+    # as this keeps the connectrion open and the IDL Socket Server will
+    # only service one connection at a time.
+    #
+    java ngat.ioi.command.PowerDownASICCommand ioi_win 5000
+    set java_status = $status
+    if( ${java_status} != 0 ) then
+	echo "Failed to power down ASIC."
+	exit 1
+    endif
 endif
 #
 # Kill nfs server - /icc/tmp is usually mounted for the rcs machine
 #
-echo "Stopping NFS server (/icc/tmp is exported)..."
+echo "Stopping NFS server (/icc/i-data is exported)..."
 /etc/init.d/nfs stop
 #
 # Delete old installation
