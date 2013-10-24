@@ -905,7 +905,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		// send acknowledge to say frames are completed.
 		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 			":sendACK:Sending ACK with timeToComplete "+timeToComplete+" and default ACK time "+
-			timeToComplete+serverConnectionThread.getDefaultAcknowledgeTime());
+			(long)(timeToComplete+serverConnectionThread.getDefaultAcknowledgeTime()));
 		ack = new ACK(multRunCommand.getId());
 		ack.setTimeToComplete(timeToComplete+serverConnectionThread.getDefaultAcknowledgeTime());
 		try
@@ -942,7 +942,10 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		MULTRUN_ACK multRunAck = null;
 
 		// send acknowledge to say frames are completed.
-		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":sendMultrunACK:Sending ACK.");
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":sendMultrunACK:Sending ACK with exposure time "+multRunCommand.getExposureTime()+
+			" plus ramp overhead "+rampOverheadTime+
+			" plus default ACK time "+serverConnectionThread.getDefaultAcknowledgeTime()+".");
 		multRunAck = new MULTRUN_ACK(multRunCommand.getId());
 		multRunAck.setTimeToComplete(multRunCommand.getExposureTime()+rampOverheadTime+
 					     serverConnectionThread.getDefaultAcknowledgeTime());

@@ -5,7 +5,8 @@ set ioi_address = "ioi_host"
 #set ioi_address = "ioi_linux"
 #set ioi_address = "ltobs9"
 set ioi_port = 7373
-set exposure_length_list = "1000 2000 5000 10000 30000 60000 120000"
+#set exposure_length_list = "1000 2000 5000 10000 30000 60000 120000"
+set exposure_length_list = "5000 10000 30000 60000 120000"
 set exposure_count_list = "1 3 5 9"
 #if ( -r /home/dev/bin/ioi/test/SendMultrunCommand.class ) then
 #	set multrun_dir = /home/dev/bin/ioi/test/

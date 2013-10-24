@@ -1176,6 +1176,16 @@ public class IOI
 	}
 
 	/**
+	 * Get the side car temeprature protection thread instance running.
+	 * @return The instance.
+	 * @see #sidecarTemperatureProtectionThread
+	 */
+	public SidecarTemperatureProtectionThread getSidecarTemperatureProtectionThread()
+	{
+		return sidecarTemperatureProtectionThread;
+	}
+
+	/**
 	 * Get libngatfits instance. This is the only instance of the ngat.fits.FitsHeader class in this application.
 	 * It is used to write FITS header cards to disk, ready to append the relevant data to it.
 	 * @return The libngatfits instance.

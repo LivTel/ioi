@@ -128,6 +128,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		GET_STATUS getStatusCommand = (GET_STATUS)command;
 		GET_STATUS_DONE getStatusDone = new GET_STATUS_DONE(command.getId());
 		ISS_TO_INST currentCommand = null;
+		int sidecarTemperatureProtectionThreadState;
 
 		try
 		{
@@ -171,6 +172,12 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		hashTable.put("Exposure Start Time",new Long(status.getExposureStartTime()));
 		hashTable.put("Exposure Count",new Integer(status.getExposureCount()));
 		hashTable.put("Exposure Number",new Integer(status.getExposureNumber()));
+		// sidecar temperature protection status
+		sidecarTemperatureProtectionThreadState = ioi.getSidecarTemperatureProtectionThread().getThreadState();
+		hashTable.put("Sidecar Temperature Protection State",
+			      new Integer(sidecarTemperatureProtectionThreadState));
+		hashTable.put("Sidecar Temperature Protection State String",
+			 SidecarTemperatureProtectionThread.stateToString(sidecarTemperatureProtectionThreadState));
 	// intermediate level information - basic plus controller calls.
 		if(getStatusCommand.getLevel() >= GET_STATUS.LEVEL_INTERMEDIATE)
 		{

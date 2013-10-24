@@ -1,11 +1,12 @@
 #!/bin/csh
 # $HeadURL$
 # Cron job script to delete old data from the disk to stop the test machine filling up.
-set directory = /icc/i-data/H2RG-C001-ASIC-LT1/FSRamp/
-#set directory = /data/H2RG-C001-ASIC-LT1/FSRamp/
 set max_file_age = 3600
-/bin/ls ${directory} > /tmp/ioi_delete_old_data_cron_directory_list.txt
-foreach sub_directory ( `cat /tmp/ioi_delete_old_data_cron_directory_list.txt` )
+foreach directory ( /icc/i-data/H2RG-C001-ASIC-LT1/FSRamp/ /icc/i-data/H2RG-C001-ASIC-LT1/UpTheRamp/ )
+    #set directory = /icc/i-data/H2RG-C001-ASIC-LT1/FSRamp/
+    #set directory = /data/H2RG-C001-ASIC-LT1/FSRamp/
+    /bin/ls ${directory} > /tmp/ioi_delete_old_data_cron_sub_directory_list.txt
+    foreach sub_directory ( `cat /tmp/ioi_delete_old_data_cron_sub_directory_list.txt` )
 	set dir_year = `echo $sub_directory | /bin/sed "s/\(....\)\(..\)\(..\)\(..\)\(..\)\(..\)/\1/"`
 	set dir_month = `echo $sub_directory | /bin/sed "s/\(....\)\(..\)\(..\)\(..\)\(..\)\(..\)/\2/"`
 	set dir_day = `echo $sub_directory | /bin/sed "s/\(....\)\(..\)\(..\)\(..\)\(..\)\(..\)/\3/"`
@@ -18,12 +19,14 @@ foreach sub_directory ( `cat /tmp/ioi_delete_old_data_cron_directory_list.txt` )
 #	set now_month = `/bin/date +"%m"`
 #	set now_day = `/bin/date +"%d"`
 #	set now_hour = `/bin/date +"%H"`
+	set now_date_string = `/bin/date`
 	set now_sec_epoch = `/bin/date +"%s"`
 	@ time_since_dir_created = ${now_sec_epoch} - ${dir_sec_epoch}
-	echo "Directory ${sub_directory} was created ${time_since_dir_created} seconds ago."
+	echo "${now_date_string}:Directory ${sub_directory} was created ${time_since_dir_created} seconds ago."
 	if(${time_since_dir_created} > ${max_file_age} ) then 
-		echo "Directory ${sub_directory} is older than ${max_file_age}, delete it"
-		echo "/bin/rm -rf ${directory}/${sub_directory} "
+		echo "${now_date_string}:Directory ${sub_directory} is older than ${max_file_age}, delete it"
+		echo "${now_date_string}:/bin/rm -rf ${directory}/${sub_directory} "
 		/bin/rm -rf ${directory}/${sub_directory}
 	endif
+    end
 end
