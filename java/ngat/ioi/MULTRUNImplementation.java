@@ -161,8 +161,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		MULTRUN multRunCommand = (MULTRUN)command;
 		MULTRUN_DP_ACK multRunDpAck = null;
 		MULTRUN_DONE multRunDone = new MULTRUN_DONE(command.getId());
-		Vector reduceFilenameList = null;
-		List fitsFileList = null;
+		Vector<File> reduceFilenameList = null;
+		List<File> fitsFileList = null;
 		String obsType = null;
 		String directory = null;
 		String filename = null;
@@ -220,7 +220,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		// do exposures
 		index = 0;
 		retval = true;
-		reduceFilenameList = new Vector();
+		reduceFilenameList = new Vector<File>();
 		while(retval&&(index < multRunCommand.getNumberExposures()))
 		{
 			// send an ACK, actually at least one exposure length + ramp overhead long
@@ -423,7 +423,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			// diddly this is wrong
 			while(retval&&(index < reduceFilenameList.size()))
 			{
-				filename = (String)reduceFilenameList.get(index);
+				filename = (String)(reduceFilenameList.get(index).toString());
 			// do reduction.
 				retval = reduceExpose(multRunCommand,multRunDone,filename);
 			// send acknowledge to say frame has been reduced.

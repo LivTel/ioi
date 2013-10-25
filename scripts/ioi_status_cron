@@ -20,9 +20,6 @@ if ( ${?LD_LIBRARY_PATH} ) then
 else
    setenv LD_LIBRARY_PATH $LT_LIB_HOME
 endif
-if ( ${?JAVA_HOME} == 0 ) then
-    setenv JAVA_HOME /usr/java/j2sdk1.4.2_03
-endif
 set classpath_string = ".:${LT_BIN_HOME}/javalib/ngat_message_base.jar:${LT_BIN_HOME}/javalib/ngat_message_inst_dp.jar:${LT_BIN_HOME}/javalib/ngat_message_iss_inst.jar:${LT_BIN_HOME}/javalib/ngat_net.jar:${LT_BIN_HOME}/javalib/ngat_phase2.jar:${LT_BIN_HOME}/javalib/ngat_util.jar:${LT_BIN_HOME}/javalib/ngat_util_logging.jar:${LT_BIN_HOME}/javalib/ngat_io_i.jar"
 if ( ${?CLASSPATH} == 0 ) then
    setenv CLASSPATH ${classpath_string}
@@ -30,16 +27,17 @@ endif
 if ( ${?HOST} == 0 ) then
     setenv HOST ioi_host
 endif
+set host = ioi_host
 set port_number = 7373
 set tmp_file = /tmp/ioi_status_cron.txt
 set tmp_err_file = /tmp/ioi_status_cron_err.txt
 set date_doy_string = `date +"%j"`
 set output_file = ${LT_HOME}/log/ioi_status_cron_${date_doy_string}.csv
-(${JAVA_HOME}/bin/java ngat.ioi.test.SendGetStatusCommand -ip ${HOST} -port ${port_number} -level 1 > ${tmp_file}) >& ${tmp_err_file}
+(java ngat.ioi.test.SendGetStatusCommand -ip ${host} -port ${port_number} -level 1 > ${tmp_file}) >& ${tmp_err_file}
 set date_string = `date`
 set date2_string = `date +"%G%m%d%H%M%S"`
 set date3_string = `date +"%s"`
-set dewar_temperature = `cat ${tmp_file} | grep 'Temperature = ' | sed "s/.*Temperature = \(.*\)/\1/g"`
+set dewar_temperature = `cat ${tmp_file} | grep '^Temperature = ' | sed "s/.*Temperature = \(.*\)/\1/g"`
 set dewar_temperature_0 = `cat ${tmp_file} | grep 'Temperature.0 = ' | sed "s/.*Temperature.0 = \(.*\)/\1/g"`
 set dewar_temperature_1 = `cat ${tmp_file} | grep 'Temperature.1 = ' | sed "s/.*Temperature.1 = \(.*\)/\1/g"`
 set heater_pcent = `cat ${tmp_file} | grep 'Heater PCent' | sed "s/Heater PCent = \(.*\)/\1/g"`

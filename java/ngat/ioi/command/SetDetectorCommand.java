@@ -11,7 +11,7 @@ import java.net.*;
  * IO:I IDL Socket Server. This determines the multiplexor type (H1RG, H2RG, H4RG) and the number of outputs
  * to use (1,2,4,16,32)
  * @author Chris Mottram
- * @version $Revision: 28 $
+ * @version $Revision$
  */
 public class SetDetectorCommand extends StandardReplyCommand implements Runnable
 {
@@ -24,8 +24,17 @@ public class SetDetectorCommand extends StandardReplyCommand implements Runnable
 	 * @see #setCommand
 	 */
 	public final static int MUX_TYPE_H1RG = 1;
+	/**
+	 * Integer representation of multiplexor type H2RG, used as a commkand parameter.
+	 * @see #setCommand
+	 */
 	public final static int MUX_TYPE_H2RG = 2;
+	/**
+	 * Integer representation of multiplexor type H4RG, used as a commkand parameter.
+	 * @see #setCommand
+	 */
 	public final static int MUX_TYPE_H4RG = 4;
+
 	/**
 	 * Default constructor.
 	 */

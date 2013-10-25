@@ -291,7 +291,7 @@ echo "${dir_count} C test program directories copied, containg ${file_count} C t
 # Scripts
 #
 echo "Copying scripts..."
-set file_list = "ioi/scripts/ioi_engineering_mode ioi/scripts/ioi_clock_test_cron ioi/scripts/ioi_delete_old_data_cron scripts/killhup.csh scripts/fuser_check ccs_gui/java/icsgui"
+set file_list = "ioi/scripts/ioi_engineering_mode ioi/scripts/ioi_clock_test_cron ioi/scripts/ioi_delete_old_data_cron scripts/killhup.csh scripts/fuser_check ccs_gui/java/icsgui ioi/scripts/ioi_status_cron"
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )

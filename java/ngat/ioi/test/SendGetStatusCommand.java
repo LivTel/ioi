@@ -15,7 +15,7 @@ import ngat.util.*;
 /**
  * This class sends a GET_STATUS command to IO:I. 
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision$
  */
 public class SendGetStatusCommand
 {

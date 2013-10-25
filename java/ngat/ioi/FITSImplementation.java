@@ -689,12 +689,12 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 *            representing a valid directory.
 	 * @exception Exception Thrown if listing a directory returns null.
 	 */
-	public List findFITSFilesInDirectory(String directoryString) throws Exception, IllegalArgumentException
+	public List<File> findFITSFilesInDirectory(String directoryString) throws Exception, IllegalArgumentException
 	{
 		File directoryFile = null;
-		List directoryList = new Vector();
+		List<File> directoryList = new Vector<File>();
 		File fileList[];
-		List fitsFileList = new Vector();
+		List<File> fitsFileList = new Vector<File>();
 
 		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":findFITSFilesInDirectory:Starting from directory:"+directoryString+".");

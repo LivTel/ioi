@@ -78,7 +78,7 @@ public class IOI
 	 * are stored as the Hashtable data values as class objects of sub-classes of CommandImplementation.
 	 * When IO:I gets a COMMAND from a client it can query this Hashtable to find it's implementation class.
 	 */
-	private Hashtable implementationList = null;
+	private Hashtable<String,Class> implementationList = null;
 	/**
 	 * Command line argument. The level of logging to perform in IOI.
 	 */
@@ -742,7 +742,7 @@ public class IOI
 		int index;
 		boolean done;
 
-		implementationList = new Hashtable();
+		implementationList = new Hashtable<String,Class>();
 		index = 0;
 		done = false;
 		while(done == false)
@@ -836,6 +836,11 @@ public class IOI
 	 *     retrieved above.
 	 * <li>We send the SetDetector command to the IDL Socket Server, retrieve and check the reply 
 	 *     (via the CommandReplyBroker instance).
+	 * <li>We retrieve SetGain parameter data from the "ioi.idl.set_gain.gain" property.
+	 * <li>We create and set the command parameters of an instance of SetGainCommand, using the properties
+	 *     retrieved above.
+	 * <li>We send the SetGain command to the IDL Socket Server, retrieve and check the reply 
+	 *     (via the CommandReplyBroker instance).
 	 * <li>If the temperature controller is enabled, the socket device is opened, 
 	 *     the target temperature is set, the heater range is configured, and the display brightness set.
 	 * </ul>
@@ -863,12 +868,13 @@ public class IOI
 	{
 		InitializeCommand initializeCommand = null;
 		SetDetectorCommand setDetectorCommand = null;
+		SetGainCommand setGainCommand = null;
 		CommandReplyBroker replyBroker = null;
 		String idlHostname = null;
 		int idlPortNumber = 0;
 		int initializeLevel = 2;
 		String muxTypeString = null;
-		int muxType,nOutputs;
+		int muxType,nOutputs,gain;
 		boolean tempControlEnable;
 		String tempControlDeviceType = null;
 		String tempControlSocketAddress = null;
@@ -936,6 +942,7 @@ public class IOI
 			error(this.getClass().getName()+":startupController:Initialze failed:",e);
 			throw e;
 		}
+		// SetDetector
 		try
 		{
 			log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
@@ -962,6 +969,33 @@ public class IOI
 		catch(Exception e)
 		{
 			error(this.getClass().getName()+":startupController:SetDetector failed:",e);
+			throw e;
+		}
+		// SetGain
+		try
+		{
+			log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			    ":startupController:Set Gain.");
+			// setgain
+			setGainCommand = new SetGainCommand();
+			gain = status.getPropertyInteger("ioi.idl.set_gain.gain");
+			setGainCommand.setCommand(gain);
+			log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			    ":startupController:Sending SetGain("+gain+").");
+			setGainCommand.sendCommand();
+			if(setGainCommand.getReplyErrorCode() != 0)
+			{
+				throw new Exception(this.getClass().getName()+
+						    ":startupController:SetGain("+gain+
+						    ") failed:"+setGainCommand.getReplyErrorCode()+":"+
+						    setGainCommand.getReplyErrorString());
+			}
+			log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			    ":startupController:Set Gain finished.");
+		}
+		catch(Exception e)
+		{
+			error(this.getClass().getName()+":startupController:SetGain failed:",e);
 			throw e;
 		}
 		// temperature controller

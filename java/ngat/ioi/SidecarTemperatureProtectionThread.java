@@ -25,7 +25,7 @@ import ngat.util.logging.*;
  * Note once the FAIL_COMMS, FAIL_TEMP, NOT_RUNNING, STOPPED state are reached these are the final states 
  * (the thread has stopped running). To reset / restart the thread reboot the robotic software or create a new
  * thread instance.
- * @version $Revision: 28 $
+ * @version $Revision$
  */
 public class SidecarTemperatureProtectionThread extends Thread
 {

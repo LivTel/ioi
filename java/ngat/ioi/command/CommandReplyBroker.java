@@ -1,5 +1,5 @@
 // CommandReplyBroker.java
-// $HeadURL: svn://ltdevsrv/ioi/java/ngat/ioi/command/Command.java $
+// $HeadURL$
 package ngat.ioi.command;
 
 import java.io.*;
@@ -19,7 +19,7 @@ import ngat.util.logging.*;
  * only work when they are sent on the same telnet conenction as the ACQUIRERAMP command, as the IDL
  * socket server will only process one conenction at a time.
  * @author Chris Mottram
- * @version $Revision: 4 $
+ * @version $Revision$
  */
 public class CommandReplyBroker implements Runnable
 {
