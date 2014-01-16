@@ -1,5 +1,5 @@
 // IOIConstants.java
-// $Header: /home/dev/src/tiptilt/java/ngat/tiptilt/thor/RCS/THORConstants.java,v 1.1 2010/10/07 13:23:24 cjm Exp $
+// $HeadURL$
 package ngat.ioi;
 
 import java.lang.*;
