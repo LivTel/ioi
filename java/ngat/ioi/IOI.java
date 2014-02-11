@@ -880,6 +880,8 @@ public class IOI
 		String tempControlSocketAddress = null;
 		double tempControlTargetTemperature[] = new double[2];
 		int tempControlLoop[] = new int[2];
+		double tempControlRampRate[] = new double[2];
+		boolean tempControlRampOn[] = new boolean[2];
 		int tempControlSocketPort=0,tempControlHeaterRange,tempControlBrightness;
 		int tempControlReadRetryCount,tempControlReadPause;
 
@@ -1014,6 +1016,9 @@ public class IOI
 				tempControlLoop[i] = status.getPropertyInteger("ioi.temp_control.config.loop."+i);
 				tempControlTargetTemperature[i] = status.
 					getPropertyDouble("ioi.temp_control.config.target_temperature."+i);
+				tempControlRampRate[i] = status.getPropertyDouble("ioi.temp_control.config.ramp.rate."+
+										  i);
+				tempControlRampOn[i] = status.getPropertyBoolean("ioi.temp_control.config.ramp.on."+i);
 			}
 			tempControlHeaterRange = tempControl.heaterRangeFromString(status.
 						  getProperty("ioi.temp_control.config.heater_range"));
@@ -1028,6 +1033,8 @@ public class IOI
 				for(int i = 0; i < 2; i++)
 				{
 					tempControl.temperatureSet(tempControlLoop[i],tempControlTargetTemperature[i]);
+					tempControl.rampSet(tempControlLoop[i],tempControlRampOn[i],
+							    tempControlRampRate[i]);
 				}
 				tempControl.heaterRangeSet(tempControlHeaterRange);
 				// set the temperature controller's analogue output to "loop" mode

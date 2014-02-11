@@ -222,9 +222,14 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 * </ul>
 	 * The following data is put into the hashTable:
 	 * <ul>
-	 * <li><b>Temperature</b> The current dewar temperature, this is read from the temperature controller.
+	 * <li><b>Temperature.&lt;n&gt;</b></b> The current dewar temperature, 
+	 *       this is read from the temperature controller.
 	 *       <i>setDetectorTemperatureInstrumentStatus</i> is then called to set the hashtable entry 
 	 *       KEYWORD_DETECTOR_TEMPERATURE_INSTRUMENT_STATUS and detectorTemperatureInstrumentStatus.
+	 * <li><b>Temperature.Ramp.Rate.&lt;loop&gt;</b> This is read from the temperature controller, and is
+	 *        the rate the controller will servo the temeprature in Kelvin/min.
+	 * <li><b>Temperature.Ramp.Is_On.&lt;loop&gt;</b> This is read from the temperature controller, and
+	 *        determines whether the temperature servo rate has been enabled.
 	 * <li><b>Heater PCent</b> The current Heater percentage, this is read from the temperature controller.
 	 * <li><b>Heater Status</b> The current Heater status, this is an integer read from the temperature controller.
 	 * <li><b>Heater Status String</b> A string representingthe  current Heater status, 
@@ -242,6 +247,8 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 * @see ngat.supircam.temperaturecontroller.TemperatureController#temperatureGet
 	 * @see ngat.supircam.temperaturecontroller.TemperatureController#heaterStatusGet
 	 * @see ngat.supircam.temperaturecontroller.TemperatureController#heaterStatusToString
+	 * @see ngat.supircam.temperaturecontroller.TemperatureController#rampGet
+	 * @see ngat.supircam.temperaturecontroller.TemperatureController#rampStatusGet
 	 * @see ngat.ioi.command.GetConfigCommand
 	 */
 	private void getIntermediateStatus()
@@ -252,10 +259,10 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		Date cachedGetConfigCommandTimestamp = null;
 		String heaterStatusString = null;
 		double ccdTemperature[] = {0.0,0.0};
-		int heaterStatus;
-		double heaterOutput;
+		int heaterStatus,loop;
+		double heaterOutput,rate;
 		char tempInput;
-		boolean tempControlEnable;
+		boolean tempControlEnable,isOn;
 
 		// call GET_CONFIG IDL server command to get array configuration
 		try
@@ -318,6 +325,15 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 					tempInput = status.getPropertyChar("ioi.temp_control.temperature_input."+i);
 					ccdTemperature[i] = tempControl.temperatureGet(tempInput);
 					hashTable.put("Temperature."+i,new Double(ccdTemperature[i]));
+				}
+				// get current ramp rate and whether ramp rate is turned on for each temperature loop
+				for(int i = 0; i < 2; i++)
+				{
+					loop = status.getPropertyInteger("ioi.temp_control.config.loop."+i);
+					rate = tempControl.rampGet(loop);
+					hashTable.put("Temperature.Ramp.Rate."+loop,new Double(rate));
+					isOn = tempControl.rampStatusGet(loop);
+					hashTable.put("Temperature.Ramp.Is_On."+loop,new Boolean(isOn));
 				}
 				// set standard status value based on current temperature, only if it succeeds
 				setDetectorTemperatureInstrumentStatus(ccdTemperature);
