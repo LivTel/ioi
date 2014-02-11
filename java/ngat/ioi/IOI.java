@@ -39,6 +39,11 @@ public class IOI
 	 */
 	public final static double CENTIGRADE_TO_KELVIN = 273.15;
 	/**
+	 * The maximum number of temperature control loops the software can use.
+	 * Used to allocate arrays.
+	 */
+	public final static int MAX_LOOP_COUNT = 2;
+	/**
 	 * The minimum port number to listen for connections on.
 	 */
 	static final int MINIMUM_PORT_NUMBER = 1025;
@@ -846,6 +851,7 @@ public class IOI
 	 * </ul>
 	 * @exception Exception Thrown if initialising the IDL Socket server fails, if the "Initialize" command
 	 *            to the IDL socket server fails or returns an error code.
+	 * @see #MAX_LOOP_COUNT
 	 * @see #idlTelnetConnection
 	 * @see #tempControl
 	 * @see #status
@@ -878,12 +884,12 @@ public class IOI
 		boolean tempControlEnable;
 		String tempControlDeviceType = null;
 		String tempControlSocketAddress = null;
-		double tempControlTargetTemperature[] = new double[2];
-		int tempControlLoop[] = new int[2];
-		double tempControlRampRate[] = new double[2];
-		boolean tempControlRampOn[] = new boolean[2];
+		double tempControlTargetTemperature[] = new double[MAX_LOOP_COUNT];
+		int tempControlLoop[] = new int[MAX_LOOP_COUNT];
+		double tempControlRampRate[] = new double[MAX_LOOP_COUNT];
+		boolean tempControlRampOn[] = new boolean[MAX_LOOP_COUNT];
 		int tempControlSocketPort=0,tempControlHeaterRange,tempControlBrightness;
-		int tempControlReadRetryCount,tempControlReadPause;
+		int tempControlLoopCount,tempControlReadRetryCount,tempControlReadPause;
 
 		// get the relevant configuration data from the ioi configuration file.
 		try
@@ -1011,7 +1017,14 @@ public class IOI
 			tempControlReadRetryCount = status.
 				getPropertyInteger("ioi.temp_control.config.read.retry_count");
 			tempControlReadPause = status.getPropertyInteger("ioi.temp_control.config.read.pause");
-			for(int i = 0; i < 2; i++)
+			tempControlLoopCount = status.getPropertyInteger("ioi.temp_control.config.loop_count");
+			if(tempControlLoopCount > MAX_LOOP_COUNT)
+			{
+				throw new Exception(this.getClass().getName()+
+						    ":startupController:retrieved temperature control loop count "+
+						    tempControlLoopCount+" was too large:"+MAX_LOOP_COUNT);
+			}
+			for(int i = 0; i < tempControlLoopCount; i++)
 			{
 				tempControlLoop[i] = status.getPropertyInteger("ioi.temp_control.config.loop."+i);
 				tempControlTargetTemperature[i] = status.
@@ -1030,7 +1043,7 @@ public class IOI
 				tempControl.setReadRetryCount(tempControlReadRetryCount);
 				tempControl.setReadPause(tempControlReadPause);
 				tempControl.socketOpen(tempControlSocketAddress,tempControlSocketPort);
-				for(int i = 0; i < 2; i++)
+				for(int i = 0; i < tempControlLoopCount; i++)
 				{
 					tempControl.temperatureSet(tempControlLoop[i],tempControlTargetTemperature[i]);
 					tempControl.rampSet(tempControlLoop[i],tempControlRampOn[i],

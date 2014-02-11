@@ -259,7 +259,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		Date cachedGetConfigCommandTimestamp = null;
 		String heaterStatusString = null;
 		double ccdTemperature[] = {0.0,0.0};
-		int heaterStatus,loop;
+		int heaterStatus,loop,tempControlLoopCount;
 		double heaterOutput,rate;
 		char tempInput;
 		boolean tempControlEnable,isOn;
@@ -327,7 +327,15 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 					hashTable.put("Temperature."+i,new Double(ccdTemperature[i]));
 				}
 				// get current ramp rate and whether ramp rate is turned on for each temperature loop
-				for(int i = 0; i < 2; i++)
+				tempControlLoopCount = status.getPropertyInteger("ioi.temp_control.config.loop_count");
+				if(tempControlLoopCount > IOI.MAX_LOOP_COUNT)
+				{
+					ioi.error(this.getClass().getName()+":getIntermediateStatus:"+
+						  "retrieved temperature control loop count "+
+						  tempControlLoopCount+" was too large:"+IOI.MAX_LOOP_COUNT);
+					tempControlLoopCount = 0;
+				}
+				for(int i = 0; i < tempControlLoopCount; i++)
 				{
 					loop = status.getPropertyInteger("ioi.temp_control.config.loop."+i);
 					rate = tempControl.rampGet(loop);
