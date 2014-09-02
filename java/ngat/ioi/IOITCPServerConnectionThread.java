@@ -206,11 +206,12 @@ public class IOITCPServerConnectionThread extends TCPServerConnectionThread
 	 * <li>This method checks whether the command in null and returns a generic done error message if this is the 
 	 * case.
 	 * <li>If suitable logging is enabled the command is logged.
-	 * <li>If the command is not an interrupt command sub-class it sets the O's status to reflect
-	 * the command/thread(this one) currently doing the processing.
+	 * <li>If the command is not an interrupt command sub-class it calls the IOIStatus 
+	 *     setCurrentCommand / setCurrentThread methods to reflect the command/thread(this one) 
+	 *     currently doing the processing.
 	 * <li>This method delagates the command processing to the command implementation found for the command
 	 * message class.
-	 * <li>The O's status is again updated to reflect this command/thread has finished processing. (If it's
+	 * <li>The IOIStatus is again updated to reflect this command/thread has finished processing. (If it's
 	 * not a sub-class of INTERRUPT again).
 	 * <li>If suitable logging is enabled the command is logged as completed.
 	 * </ul>

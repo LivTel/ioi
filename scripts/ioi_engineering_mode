@@ -12,12 +12,12 @@ echo "This will only succeed if you are root."
 # Kill any running processes
 #
 if ( -x /icc/bin/scripts/killhup.csh ) then
-    echo "Trying to kill AutoBooter."
-    /icc/bin/scripts/killhup.csh AutoBooter
+    echo "Trying to kill IOIAutoBooter."
+    /icc/bin/scripts/killhup.csh IOIAutoBooter
     echo "Trying to kill ngat.ioi.IOI."
     /icc/bin/scripts/killhup.csh ngat.ioi.IOI
     echo "Trying to kill DpRt."
-    /icc/bin/scripts/killhup.csh DpRt
+    /icc/bin/scripts/killhup.csh IOIDpRt
     echo "Trying to kill icsd_inet."
     /icc/bin/scripts/killhup.csh icsd_inet
 else

@@ -291,7 +291,7 @@ echo "${dir_count} C test program directories copied, containg ${file_count} C t
 # Scripts
 #
 echo "Copying scripts..."
-set file_list = "ioi/scripts/ioi_engineering_mode ioi/scripts/ioi_clock_test_cron ioi/scripts/ioi_delete_old_data_cron scripts/killhup.csh scripts/fuser_check ccs_gui/java/icsgui ioi/scripts/ioi_status_cron"
+set file_list = "ioi/scripts/ioi_engineering_mode ioi/scripts/ioi_clock_test_cron ioi/scripts/ioi_delete_old_data_cron scripts/killhup.csh scripts/fuser_check ccs_gui/java/ioigui ioi/scripts/ioi_status_cron"
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )
@@ -310,7 +310,7 @@ echo "${file_count} scripts copied."
 #
 # in bin sub-directories
 echo "Copying machine configuration files..."
-set file_list = "ioi/java/${machine_name}.fits.properties ioi/java/${machine_name}.ioi.net.properties ioi/java/${machine_name}.ioi.properties ccs_gui/java/${machine_name}.ccs_gui.properties ccs_gui/java/${machine_name}.ccs_gui_config.properties ccs_gui/java/${machine_name}.ccs_gui.fits.properties ccs_gui/java/${machine_name}.ics_gui.fits.bss.properties autobooter/java/${machine_name}.autobooter.properties dprt/java/${machine_name}.dprt.properties "
+set file_list = "ioi/java/${machine_name}.fits.properties ioi/java/${machine_name}.ioi.net.properties ioi/java/${machine_name}.ioi.properties ccs_gui/java/${machine_name}.ioi.ccs_gui.properties ccs_gui/java/${machine_name}.ioi.ccs_gui_config.properties ccs_gui/java/${machine_name}.ioi.ccs_gui.fits.properties ccs_gui/java/${machine_name}.ioi.ics_gui.fits.bss.properties autobooter/java/${machine_name}.ioi.autobooter.properties dprt/java/${machine_name}.ioi.dprt.properties "
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )
@@ -356,8 +356,8 @@ echo "${file_count} camera configuration files copied."
 # /etc init scripts
 #
 echo "Copying Autobooter initialisation script."
-set from_file = "${dev_bin_dir}/autobooter/java/${machine_name}.autobooter"
-set to_file = "${deployment_dir}${init_d_dir}/autobooter"
+set from_file = "${dev_bin_dir}/autobooter/java/${machine_name}.ioi.autobooter"
+set to_file = "${deployment_dir}${init_d_dir}/ioi.autobooter"
 cp  ${from_file} ${to_file}
 set cp_status = $status
 if( ${cp_status} != 0 ) then
