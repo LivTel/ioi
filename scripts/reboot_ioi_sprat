@@ -1,0 +1,59 @@
+#!/bin/csh
+# Reboot the control computer running IO:I and Sprat
+# Get both robotic control systems shutdown
+# This done in such a way it is safe to reboot the machine
+# i.e. for IO:I we power down the ASIC
+# Kill sprat autobooter
+if ( -x /icc/bin/scripts/killhup.csh ) then
+    echo "Trying to kill SpratAutoBooter."
+    /icc/bin/scripts/killhup.csh SpratAutoBooter
+else
+    echo "killhup not found:FAILED to stop running processess."
+endif
+# setup LD_LIBRARY_PATH for send_command
+if ( ${?LD_LIBRARY_PATH} == 0 ) then
+    setenv LD_LIBRARY_PATH ".:/icc/bin/lib/i386-linux"
+endif
+foreach directory ( /icc/bin/lib/i386-linux )
+    echo "$LD_LIBRARY_PATH" | /bin/grep -q $directory
+    if ( $status != 0 ) then
+	setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}":"${directory}
+    endif
+end
+# Send a shutdown command to sprat C layer, after killing the autobooter
+if ( -x /icc/bin/commandserver/test/i386-linux/send_command  ) then
+    set sprat_hostname = `/bin/hostname --short`
+    echo "Sending shutdown to sprat C layer."
+    /icc/bin/commandserver/test/i386-linux/send_command -h ${sprat_hostname} -p 8367 -c "shutdown"
+ else
+    echo "send_command not found:FAILED to stop running sprat."
+endif
+#
+# Kill some running IO:I processes
+#
+if ( -x /icc/bin/scripts/killhup.csh ) then
+    echo "Trying to kill IOIAutoBooter."
+    /icc/bin/scripts/killhup.csh IOIAutoBooter
+    echo "Trying to kill ngat.ioi.IOI."
+    /icc/bin/scripts/killhup.csh ngat.ioi.IOI
+else
+    echo "killhup not found:ENGINEERING mode FAILED."
+endif
+#
+# Power down the ASIC
+# We can only do this AFTER killing the robotic software,
+# as this keeps the connectrion open and the IDL Socket Server will
+# only service one connection at a time.
+#
+export CLASSPATH="/icc/bin/javalib/jibx-run.jar:/icc/bin/javalib/ngat_astrometry.jar:/icc/bin/javalib/ngat_fits.jar:/icc/bin/javalib/ngat_io_i.jar:/icc/bin/javalib/ngat_math.jar:/icc/bin/javalib/ngat_math_test.jar:/icc/bin/javalib/ngat_message_base.jar:/icc/bin/javalib/ngat_message_inst_bss.jar:/icc/bin/javalib/ngat_message_inst_dp.jar:/icc/bin/javalib/ngat_message_iss_inst.jar:/icc/bin/javalib/ngat_message_rcs_bss.jar:/icc/bin/javalib/ngat_net.jar:/icc/bin/javalib/ngat_new_phase2.jar:/icc/bin/javalib/ngat_phase2.jar:/icc/bin/javalib/ngat_sound.jar:/icc/bin/javalib/ngat_sprat.jar:/icc/bin/javalib/ngat_supircam_temperature_controller.jar:/icc/bin/javalib/ngat_swing.jar:/icc/bin/javalib/ngat_util.jar:/icc/bin/javalib/ngat_util_logging.jar:/icc/bin/ioi/java"
+java ngat.ioi.command.PowerDownASICCommand ioi_win 5000
+set java_status = $status
+if( ${java_status} != 0 ) then
+    echo "Failed to power down ASIC."
+# We carry on anyway here, in the hope that a PowerDownASICCommand failure means IO:I is physically switched off
+# This could cause the Java layer to issue an InitialiseCommand whilst the array is already powered up.
+# This is dodgy.
+endif
+# actually reboot the machine
+echo "Rebooting the machine..."
+/sbin/reboot

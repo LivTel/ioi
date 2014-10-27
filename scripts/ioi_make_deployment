@@ -310,7 +310,7 @@ echo "${file_count} scripts copied."
 #
 # in bin sub-directories
 echo "Copying machine configuration files..."
-set file_list = "ioi/java/${machine_name}.fits.properties ioi/java/${machine_name}.ioi.net.properties ioi/java/${machine_name}.ioi.properties ccs_gui/java/${machine_name}.ioi.ccs_gui.properties ccs_gui/java/${machine_name}.ioi.ccs_gui_config.properties ccs_gui/java/${machine_name}.ioi.ccs_gui.fits.properties ccs_gui/java/${machine_name}.ioi.ics_gui.fits.bss.properties autobooter/java/${machine_name}.ioi.autobooter.properties dprt/java/${machine_name}.ioi.dprt.properties "
+set file_list = "ioi/java/${machine_name}.fits.properties ioi/java/${machine_name}.ioi.net.properties ioi/java/${machine_name}.ioi.properties ccs_gui/java/${machine_name}.ioi.ccs_gui.properties ccs_gui/java/${machine_name}.ioi.ccs_gui_config.properties ccs_gui/java/${machine_name}.ccs_gui.fits.properties ccs_gui/java/${machine_name}.ioi.ics_gui.fits.bss.properties autobooter/java/${machine_name}.ioi.autobooter.properties dprt/java/${machine_name}.ioi.dprt.properties "
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )
