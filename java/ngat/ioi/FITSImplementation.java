@@ -796,9 +796,13 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 	/**
 	 * Rename the FITS files  specified into a standard LT multrun in the configured LT FITS filename 
-	 * directory.
+	 * directory. The FITS images should all be from the same exposure. Currently they are renamed
+	 * as a single multrun with the run number incrementing. Maybe they should be a sinle multrun, single run
+	 * with the window number increasing, as these files are all for the same exposure (up the ramp or
+	 * fowler sampling).
 	 * @param fitsImageList A List, containing File object instances, where each item represents a FITS image
-	 *        within the IDL socket server directory structure.
+	 *        within the IDL socket server directory structure. The contents of this list are changed
+	 *        to the renamed LT style FITS filenames.
 	 * @param exposureCode A character describing which type of exposure we are doing, 
 	 *        ARC|BIAS|DARK|EXPOSURE|SKY_FLAT|ACQUIRE
 	 * @exception Exception Thrown if the rename operation fails.
@@ -839,6 +843,10 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 							    ":renameFitsFiles:Renaming "+fitsFile.toString()+
 							    " to "+newFilename+" failed.");
 				}
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":renameFitsFiles:renamed "+fitsFile+" to "+newFilename+".");
+				// update fitsImageList with renamed file.
+				fitsImageList.set(fitsImageIndex,newFilename);
 			}
 		}
 		else

@@ -163,6 +163,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		MULTRUN_DONE multRunDone = new MULTRUN_DONE(command.getId());
 		Vector<File> reduceFilenameList = null;
 		List<File> fitsFileList = null;
+		File fitsFile = null;
 		String obsType = null;
 		String directory = null;
 		String filename = null;
@@ -380,18 +381,25 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Ramp data found in directory:"+directory+" for exposure index "+
 				index+".");
-			// for now, the returned filename is set to the directory containing the result data.
-			filename = directory;
-			// send acknowledge to say frames are completed.
-			if(!sendMultrunACK(multRunCommand,multRunDone,filename))
+			// return the FITS files generated for this exposure
+			if(fitsFileList != null)
 			{
-				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-					":processCommand:sendMultrunACK failed for index "+index+
-					" : Reseting telescope offset.");
-				//moveFilterToBlank(multRunCommand,multRunDone);
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				return multRunDone;
-			}
+				for(int fitsFileIndex = 0; fitsFileIndex < fitsFileList.size(); fitsFileIndex++)
+				{
+					fitsFile = (File)(fitsFileList.get(fitsFileIndex));
+					filename = fitsFile.getAbsolutePath();
+					// send acknowledge to say frames are completed.
+					if(!sendMultrunACK(multRunCommand,multRunDone,filename))
+					{
+						ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+							":processCommand:sendMultrunACK failed for index "+index+
+							" : Reseting telescope offset.");
+						//moveFilterToBlank(multRunCommand,multRunDone);
+						resetTelescopeOffset(multRunCommand,multRunDone);
+						return multRunDone;
+					}
+				}// end for on fits filenames
+			}// end if
 			status.setExposureNumber(index+1);
 			// add filename to list for data pipeline processing.
 			reduceFilenameList.addAll(fitsFileList);
@@ -420,7 +428,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		{
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Data pipelining.");
-			// diddly this is wrong
 			while(retval&&(index < reduceFilenameList.size()))
 			{
 				filename = (String)(reduceFilenameList.get(index).toString());

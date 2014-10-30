@@ -381,6 +381,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			temperatureControllerCommsStatus = GET_STATUS_DONE.VALUE_STATUS_UNKNOWN;
 		}
 		// set data in Hashtable
+		// Copy the array temperature to "Temperature", this used by the opsgui amongst others
 		hashTable.put("Temperature",new Double(ccdTemperature[0]));
 		hashTable.put("Heater PCent",new Double(heaterOutput));
 		hashTable.put("Heater Status",new Integer(heaterStatus));
