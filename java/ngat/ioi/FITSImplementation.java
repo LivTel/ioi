@@ -814,9 +814,10 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * @see ngat.fits.FitsFilename#EXPOSURE_CODE_SKY_FLAT
 	 * @see ngat.fits.FitsFilename#EXPOSURE_CODE_ACQUIRE
 	 */
-	public void renameFitsFiles(List fitsImageList,char exposureCode) throws Exception
+	public void renameFitsFiles(List<File> fitsImageList,char exposureCode) throws Exception
 	{
 		File fitsFile = null;
+		File newFitsFile = null;
 		FitsFilename fitsFilename = null;
 		String newFilename = null;
 		boolean fitsFilenameRename,retval;
@@ -836,17 +837,19 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 				fitsFile = (File)(fitsImageList.get(fitsImageIndex));
 				fitsFilename.nextRunNumber();
 				newFilename = fitsFilename.getFilename();
-				retval = fitsFile.renameTo(new File(newFilename));
+				newFitsFile = new File(newFilename);
+				retval = fitsFile.renameTo(newFitsFile);
 				if(retval == false)
 				{
 					throw new Exception(this.getClass().getName()+
 							    ":renameFitsFiles:Renaming "+fitsFile.toString()+
-							    " to "+newFilename+" failed.");
+							    " to "+newFitsFile.toString()+" failed.");
 				}
 				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-					":renameFitsFiles:renamed "+fitsFile+" to "+newFilename+".");
+					":renameFitsFiles:renamed "+fitsFile.toString()+" to "+
+					newFitsFile.toString()+".");
 				// update fitsImageList with renamed file.
-				fitsImageList.set(fitsImageIndex,newFilename);
+				fitsImageList.set(fitsImageIndex,newFitsFile);
 			}
 		}
 		else
