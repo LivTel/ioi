@@ -8,6 +8,7 @@ import java.util.List;
 import ngat.message.base.*;
 import ngat.message.ISS_INST.*;
 import ngat.message.INST_DP.*;
+import ngat.util.logging.*;
 
 /**
  * This class provides the generic implementation for EXPOSE commands sent to a server using the
@@ -103,6 +104,46 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 				exposeDone.setSkyBrightness(reduceDone.getSkyBrightness());
 				exposeDone.setSaturation(reduceDone.getSaturation());
 			}
+		}
+		return true;
+	}
+
+	/**
+	 * Method to send an ACK to the to ensure the client connection is kept open.
+	 * @param command The command we are implementing.
+	 * @param done The COMMAND_DONE command object that will be returned to the client. We set
+	 *       a sensible error message in this object if this method fails.
+	 * @param timeToComplete The length of time before the command is due to finish,
+	 *      or before the next ACK is to be sent, in milliseconds. The client should hold open the
+	 *      socket connection for the command for at least this length of time before giving up.
+	 * @return We return true if the method succeeds, and false if an error occurs.
+	 * @see #ioi
+	 * @see #serverConnectionThread
+	 * @see ngat.ioi.IOI#log
+	 * @see ngat.ioi.IOI#error
+	 * @see ngat.message.base.ACK
+	 */
+	protected boolean sendACK(COMMAND command,COMMAND_DONE done,int timeToComplete)
+	{
+		ACK ack = null;
+
+		// send acknowledge to say frames are completed.
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":sendACK:Sending ACK with timeToComplete "+timeToComplete+" and default ACK time "+
+			(long)(timeToComplete+serverConnectionThread.getDefaultAcknowledgeTime()));
+		ack = new ACK(command.getId());
+		ack.setTimeToComplete(timeToComplete+serverConnectionThread.getDefaultAcknowledgeTime());
+		try
+		{
+			serverConnectionThread.sendAcknowledge(ack);
+		}
+		catch(IOException e)
+		{
+			ioi.error(this.getClass().getName()+":sendACK:sendAcknowledge failed:",e);
+			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+601);
+			done.setErrorString("sendMultrunACK:sendAcknowledge failed:"+e.toString());
+			done.setSuccessful(false);
+			return false;
 		}
 		return true;
 	}

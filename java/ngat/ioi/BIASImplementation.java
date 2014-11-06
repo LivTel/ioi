@@ -66,6 +66,10 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 
 	/**
 	 * This method implements the BIAS command. 
+	 * @see EXPOSEImplementation#sendACK
+	 * @see FITSImplementation#findFITSFilesInDirectory
+	 * @see FITSImplementation#addFitsHeadersToFitsImages
+	 * @see FITSImplementation#renameFitsFiles
 	 */
 	public COMMAND_DONE processCommand(COMMAND command)
 	{
@@ -74,10 +78,13 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 		SetFSParamCommand setFSParamCommand = null;
 		SetRampParamCommand setRampParamCommand = null;
 		AcquireRampCommand acquireRampCommand = null;
+		FitsFilename fitsFilename = null;
+		List<File> fitsFileList = null;
 		String directory = null;
 		String filename = null;
 		long acquireRampCommandCallTime;
 		int index,bFS,nReset,nRead,nGroup,nDrop,groupExecutionTime;
+		boolean fitsFilenameRename;
 
 		ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
 			":processCommand:Starting BIAS command.");
@@ -86,6 +93,13 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 	// setup exposure status.
 		status.setExposureCount(1);
 		status.setExposureNumber(0);
+		// if we are renaming the FITS images, increment the MULTRUN number
+		fitsFilenameRename = status.getPropertyBoolean("ioi.file.fits.rename");
+		if(fitsFilenameRename)
+		{
+			fitsFilename = ioi.getFitsFilename();
+			fitsFilename.nextMultRunNumber();
+		}
 		// Find out which sampling mode the array is using
 		try
 		{
@@ -238,11 +252,28 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Finding ramp data.");
 			directory = findRampData(acquireRampCommandCallTime);
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Listing FITS images in Ramp Data directory "+directory+".");
+			fitsFileList = findFITSFilesInDirectory(directory);
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Adding FITS headers to "+fitsFileList.size()+" FITS images.");
+			// It can take up to 2 seconds per frame to add FITS headers to each frame
+			// send an ACK to stop a timeout
+			if(sendACK(biasCommand,biasDone,(fitsFileList.size()*2000)) == false)
+			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":processCommand:sendACK failed.");
+				return biasDone;
+			}
+			addFitsHeadersToFitsImages(fitsFileList);
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Rename generated FITS images to LT spec (if enabled).");
+			renameFitsFiles(fitsFileList,FitsFilename.EXPOSURE_CODE_BIAS);
 		}
 		catch(Exception e)
 		{
 			ioi.error(this.getClass().getName()+
-				  ":processCommand:findRampData failed:"+command+":"+e.toString());
+				  ":processCommand:rocessing acquired data failed:"+command+":"+e.toString());
 			biasDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+707);
 			biasDone.setErrorString(e.toString());
 			biasDone.setSuccessful(false);
@@ -252,6 +283,7 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 			":processCommand:Ramp data found in directory:"+directory);
 		// for now, the returned filename is set to the directory containing the result data set.
 		filename = directory;
+		// diddly renameFits
 		biasDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_NO_ERROR);
 		biasDone.setErrorString("");
 		biasDone.setSuccessful(true);

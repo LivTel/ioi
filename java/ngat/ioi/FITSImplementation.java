@@ -795,11 +795,10 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	}
 
 	/**
-	 * Rename the FITS files  specified into a standard LT multrun in the configured LT FITS filename 
-	 * directory. The FITS images should all be from the same exposure. Currently they are renamed
-	 * as a single multrun with the run number incrementing. Maybe they should be a sinle multrun, single run
-	 * with the window number increasing, as these files are all for the same exposure (up the ramp or
-	 * fowler sampling).
+	 * Rename the FITS files  specified into a standard LT run with a multrun in the configured LT FITS filename 
+	 * directory. The FITS images should all be from the same exposure (ramp). Currently they are renamed
+	 * as a sinle multrun, single run with the window number incrementing. The multrun should have been
+	 * incremented externally to this method.
 	 * @param fitsImageList A List, containing File object instances, where each item represents a FITS image
 	 *        within the IDL socket server directory structure. The contents of this list are changed
 	 *        to the renamed LT style FITS filenames.
@@ -829,13 +828,14 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		{
 			// get the FITS filename instance
 			fitsFilename = ioi.getFitsFilename();
-			// New Multrun, set exposure code appropriately
-			fitsFilename.nextMultRunNumber();
+			// New Run in Multrun
+			fitsFilename.nextRunNumber();
+			// set exposure code appropriately
 			fitsFilename.setExposureCode(exposureCode);
 			for(int fitsImageIndex=0;fitsImageIndex < fitsImageList.size(); fitsImageIndex++)
 			{
 				fitsFile = (File)(fitsImageList.get(fitsImageIndex));
-				fitsFilename.nextRunNumber();
+				fitsFilename.setWindowNumber(fitsImageIndex+1); // window number 1..n
 				newFilename = fitsFilename.getFilename();
 				newFitsFile = new File(newFilename);
 				retval = fitsFile.renameTo(newFitsFile);
