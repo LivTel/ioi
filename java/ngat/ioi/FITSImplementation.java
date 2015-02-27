@@ -681,10 +681,12 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	}
 
 	/**
-	 * Given a directory, find all the FITS images in it, and it's subdirectories.
+	 * Given a directory, find all the FITS images in it.
+	 * We no longer look at subdirectories. The Teledyne software puts a Result/CDSResult.fits in it's 
+	 * date-stamped directory when running in FOWLER mode, however we don't want to annotate and rename that file.
 	 * @param directoryString A string containing the root directory to start the search at.
 	 * @return A List, containing File object instances, where each item represents a FITS image
-	 *        within the directory or it's subdirectories.
+	 *        within the directory.
 	 * @exception IllegalArgumentException Thrown if directoryString is not a string 
 	 *            representing a valid directory.
 	 * @exception Exception Thrown if listing a directory returns null.
@@ -709,7 +711,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		// iterate over the directories to search
 		while(directoryList.size() > 0)
 		{
-			// get the directory from the firectory list, and then remove it from the list
+			// get the directory from the directory list, and then remove it from the list
 			directoryFile = (File)(directoryList.get(0));
 			directoryList.remove(directoryFile);
 			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
@@ -723,16 +725,17 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			}
 			for(int i = 0; i < fileList.length; i++)
 			{
-				if(fileList[i].isDirectory())
-				{
+				// no longer add sub-directories to the search list
+				//if(fileList[i].isDirectory())
+				//{
 					// add the directory to the list of directories to search
-					ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-						":findFITSFilesInDirectory:Adding directory:"+fileList[i]+
-						" to search directory list.");
-					directoryList.add(fileList[i]);
-				}
-				else
-				{
+				//	ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+				//		":findFITSFilesInDirectory:Adding directory:"+fileList[i]+
+				//		" to search directory list.");
+				//	directoryList.add(fileList[i]);
+				//}
+				//else
+				//{
 					// is it a fits file?
 					if(fileList[i].toString().endsWith(".fits"))
 					{
@@ -747,7 +750,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 							":findFITSFilesInDirectory:File:"+fileList[i]+
 							" not a FITS image.");
 					}
-				}
+				 //}
 			}// end for over files in that directory
 		}// end while directories in the list
 		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
