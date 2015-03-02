@@ -1,10 +1,13 @@
 #!/bin/csh
 # $HeadURL$
 # Cron job script to delete old data from the disk to stop the test machine filling up.
-set max_file_age = 3600
-foreach directory ( /icc/i-data/H2RG-C001-ASIC-LT1/FSRamp/ /icc/i-data/H2RG-C001-ASIC-LT1/UpTheRamp/ )
+# 31 days at 24 hours a day and 3600 seconds per hour
+set max_file_age = `/bin/echo "(31 * 24 * 3600)" | /usr/bin/bc`
+echo "Looking for directories older than ${max_file_age} seconds old."
+foreach directory ( /icc/ioi-data/H2RG-C001-ASIC-LT1/FSRamp/ /icc/ioi-data/H2RG-C001-ASIC-LT1/UpTheRamp/ )
     #set directory = /icc/i-data/H2RG-C001-ASIC-LT1/FSRamp/
     #set directory = /data/H2RG-C001-ASIC-LT1/FSRamp/
+    echo "Checking directory ${directory}."
     /bin/ls ${directory} > /tmp/ioi_delete_old_data_cron_sub_directory_list.txt
     foreach sub_directory ( `cat /tmp/ioi_delete_old_data_cron_sub_directory_list.txt` )
 	set dir_year = `echo $sub_directory | /bin/sed "s/\(....\)\(..\)\(..\)\(..\)\(..\)\(..\)/\1/"`
