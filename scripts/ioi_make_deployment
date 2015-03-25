@@ -121,7 +121,7 @@ foreach jar ( ${jar_list} )
 	set cp_status = $status
 	if( ${cp_status} != 0 ) then
 	    echo "Copy failed: ${dev_bin_dir}/javalib_third_party/${jar} to ${deployment_bin_dir}/javalib"
-	    exit 3
+	    exit 4
 	endif
 # ident contents of jar
 	cd ${deployment_dir}
@@ -157,7 +157,7 @@ foreach java_class_dir ( ${java_class_dir_list} )
 	set cp_status = $status
 	if( ${cp_status} != 0 ) then
 	    echo "Copy failed: ${dev_bin_dir}/${java_class_dir}/*.class to ${deployment_bin_dir}/${java_class_dir}"
-	    exit 3
+	    exit 5
 	endif
 # ident each file in dir
 	cd ${deployment_dir}
@@ -193,7 +193,7 @@ foreach clib ( ${clib_list} )
 	set cp_status = $status
 	if( ${cp_status} != 0 ) then
 	    echo "Copy failed: ${dev_bin_dir}/lib/${HOSTTYPE}/${clib} to ${deployment_bin_dir}/lib/${HOSTTYPE}/"
-	    exit 5
+	    exit 6
 	endif
 # ident contents of lib
 	cd ${deployment_dir}
@@ -218,7 +218,7 @@ foreach clib ( ${clib_list} )
 	set cp_status = $status
 	if( ${cp_status} != 0 ) then
 	    echo "Copy failed: ${eSTAR_LIB_HOME}/${clib} to ${deployment_bin_dir}/lib/${HOSTTYPE}/"
-	    exit 5
+	    exit 7
 	endif
 # ident contents of lib
 	cd ${deployment_dir}
@@ -266,7 +266,7 @@ foreach dir ( ${dir_list} )
 			set cp_status = $status
 			if( ${cp_status} != 0 ) then
 			    echo "Copy failed: ${file} to ${deployment_bin_dir}/${output_dir}"
-			    exit 6
+			    exit 8
 			endif
 # ident file and add to list
 			( ident ${dir}/${file:t} > ${deployment_tmp_dir}/ident.txt ) >& ${deployment_tmp_dir}/ident_error.txt
@@ -300,7 +300,7 @@ foreach file ( ${file_list} )
     set cp_status = $status
     if( ${cp_status} != 0 ) then
 	echo "Copy failed: ${dev_bin_dir}/${file} to ${deployment_bin_dir}/${new_file}"
-	exit 4
+	exit 9
     endif
     @ file_count ++
 end
@@ -319,7 +319,7 @@ foreach file ( ${file_list} )
     set cp_status = $status
     if( ${cp_status} != 0 ) then
 	echo "Copy failed: ${dev_bin_dir}/${file} to ${deployment_bin_dir}/${new_file}"
-	exit 5
+	exit 10
     endif
     @ file_count ++
 end
@@ -332,7 +332,7 @@ foreach file ( ${file_list} )
     set cp_status = $status
     if( ${cp_status} != 0 ) then
 	echo "Copy failed: ${dev_bin_dir}/${file} to ${deployment_icc_dir}/${new_file}"
-	exit 5
+	exit 11
     endif
     @ file_count ++
 end
@@ -347,7 +347,7 @@ foreach file ( ${file_list} )
     set cp_status = $status
     if( ${cp_status} != 0 ) then
 	echo "Copy failed: ${dev_bin_dir}/${file} to ${deployment_icc_dir}/${new_file}"
-	exit 5
+	exit 12
     endif
     @ file_count ++
 end
@@ -362,8 +362,28 @@ cp  ${from_file} ${to_file}
 set cp_status = $status
 if( ${cp_status} != 0 ) then
     echo "Copy failed: ${from_file} to ${to_file}"
-    exit 6
+    exit 13
 endif
+#
+# serialized Java message classes : .obj
+#
+echo "Copying serialized Java message files..."
+set dir = "ioi/test"
+set file_count = 0
+cd ${dev_bin_dir}/${dir}
+foreach file ( *.obj )
+    cp ${dev_bin_dir}/${dir}/${file} ${deployment_bin_dir}/${dir}/${file}
+    set cp_status = $status
+    if( ${cp_status} != 0 ) then
+	echo "Copy failed: ${dev_bin_dir}/${dir}/${file} to ${deployment_bin_dir}/${dir}/${file}"
+	exit 14
+    endif
+    @ file_count ++
+end
+echo "${file_count} serialized Java message files copied."
+#
+# gif files
+#
 echo "Copying gif/wav files..."
 set file_list = "ccs_gui/java/lt.gif ccs_gui/java/lt_icon.gif ccs_gui/java/ratcam.gif ccs_gui/java/wav/halopperational.wav ccs_gui/java/wav/halsorrydave.wav ccs_gui/java/wav/halsmoothly.wav ccs_gui/java/wav/halmessage4u.wav ccs_gui/java/wav/halgoodevening.wav"
 # ccs_gui/java/wav/command_completed.wav ccs_gui/java/wav/command_failed.wav ccs_gui/java/wav/filename.wav ccs_gui/java/wav/iss_message.wav ccs_gui/java/wav/welcome.wav
@@ -374,7 +394,7 @@ foreach file ( ${file_list} )
     set cp_status = $status
     if( ${cp_status} != 0 ) then
 	echo "Copy failed: ${dev_bin_dir}/${file} to ${deployment_bin_dir}/${file}"
-	exit 6
+	exit 15
     endif
     @ file_count ++
 end

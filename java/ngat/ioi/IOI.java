@@ -79,6 +79,10 @@ public class IOI
 	 */
 	private FitsHeaderDefaults fitsHeaderDefaults = null;
 	/**
+	 * The only instance of the ngat.fits FitsFlip class - used to flip FITS image data.
+	 */
+	private FitsFlip fitsFlip = null;
+	/**
 	 * This hashtable holds the map between COMMAND sub-class names and their implementations, which
 	 * are stored as the Hashtable data values as class objects of sub-classes of CommandImplementation.
 	 * When IO:I gets a COMMAND from a client it can query this Hashtable to find it's implementation class.
@@ -153,6 +157,11 @@ public class IOI
 	 * <ul>
 	 * <li>Create status object, and load property file.
 	 * <li>Initialise loggers.
+	 * <li>Initialise the temperature controller.
+	 * <li>Initialise the FitsFilename instance, if we are to rename FITS images.
+	 * <li>Initialise the FitsHeader instance.
+	 * <li>Initialise the FitsHeaderDefaults instance.
+	 * <li>Initialise the FitsFlip instance.
 	 * <li>Initialise implementation list.
 	 * <li>Retrieve port numbers from properties.
 	 * <li>Get ISS address from properties.
@@ -174,6 +183,9 @@ public class IOI
 	 * @see #bssUse
 	 * @see #tempControl
 	 * @see #fitsFilename
+	 * @see #fitsFlip
+	 * @see #libngatfits
+	 * @see #fitsHeaderDefaults
 	 * @see ngat.ioi.IOIStatus
 	 * @see ngat.ioi.IOIStatus#load
 	 * @see ngat.ioi.IOIStatus#getPropertyInteger
@@ -237,6 +249,8 @@ public class IOI
 			error(this.getClass().getName()+":init:loading default FITS header properties:",e);
 			throw e;
 		}
+		// Create instance of FitsFlip
+		fitsFlip = new FitsFlip();
 	// Create and initialise the implementationList
 		initImplementationList();
 	// initialise port numbers from properties file/ command line arguments
@@ -322,6 +336,8 @@ public class IOI
 		copyLogHandlers(logLogger,
 				LogManager.getLogger("ngat.supircam.temperaturecontroller.TemperatureController"),
 				null,Logging.ALL);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.fits.FitsHeader"),null,Logging.ALL);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.fits.FitsFlip"),null,Logging.ALL);
 	// IOI command handlers
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.ioi.command.Command"),null,Logging.ALL);
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.ioi.command.CommandReplyBroker"),null,
@@ -1260,6 +1276,16 @@ public class IOI
 	public FitsHeaderDefaults getFitsHeaderDefaults()
 	{
 		return fitsHeaderDefaults;
+	}
+
+	/**
+	 * Get the FitsFlip instance. This is used to flip the image data.
+	 * @return The FitsFlip instance.
+	 * @see #fitsFlip
+	 */
+	public FitsFlip getFitsFlip()
+	{
+		return fitsFlip;
 	}
 
 	/**

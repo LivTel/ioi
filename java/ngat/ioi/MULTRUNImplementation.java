@@ -144,6 +144,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @see FITSImplementation#findRampData
 	 * @see FITSImplementation#findFITSFilesInDirectory
 	 * @see FITSImplementation#addFitsHeadersToFitsImages
+	 * @see FITSImplementation#flipFitsFiles
 	 * @see FITSImplementation#renameFitsFiles
 	 * @see EXPOSEImplementation#sendACK
 	 * @see EXPOSEImplementation#reduceExpose
@@ -368,6 +369,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				}
 				addFitsHeadersToFitsImages(fitsFileList);
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+					":processCommand:Flip image data in FITS images (if enabled).");
+				flipFitsFiles(fitsFileList);
+				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":processCommand:Rename generated FITS images to LT spec (if enabled).");
 				renameFitsFiles(fitsFileList,exposureCode);
 			}
@@ -546,6 +550,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * </ul>
 	 * If an error or exception occurs it is caught, a suitable error message put into MULTRUN_DONE, and false
 	 * is returned.
+	 * The exposure length requested is adjusted before sending to SetFSParam. 
+	 * This is because the array is exposing when doing nReads at the start and end of the exposure,
+	 * so the exposure length is reduced by (2*nRead)*readExecutionTime.
 	 * @param multRunCommand The MULTRUN command we are implementing.
 	 * @param multRunDone The MULTRUN_DONE command object that will be returned to the client. We set
 	 *       a sensible error message in this object if this method fails.
@@ -561,7 +568,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 						      double exposureLengthSeconds)
 	{
 		SetFSParamCommand setFSParamCommand = null;
-		int nReset,nRead,resetExecutionTime,readExecutionTime;
+		int nReset,nRead,resetExecutionTime,readExecutionTime,expLenOffset;
 
 		try
 		{
@@ -569,6 +576,33 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				":setFowlerSamplingParameters:Configuring Fowler sampling mode.");
 			nReset = status.getPropertyInteger("ioi.config.FOWLER.nreset");
 			nRead = status.getPropertyInteger("ioi.config.FOWLER.nread");
+			resetExecutionTime = status.getPropertyInteger("ioi.config.FOWLER.reset_execution_time");
+			readExecutionTime = status.getPropertyInteger("ioi.config.FOWLER.read_execution_time");
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				":setFowlerSamplingParameters:resetExecutionTime = "+resetExecutionTime+
+				",readExecutionTime = "+readExecutionTime+".");
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				":setFowlerSamplingParameters:Requested exposure length "+exposureLengthSeconds+" s.");
+			// The exposure actually includes two sets of nReads 
+			// The exposure length sent to SetFSParam is the length of time the IDL
+			// software waits between the end of the last of the first set of reads and 
+			// the start of the second set of reads.
+			// Therefore reduce exposure length sent to SetFSParam as follows:
+			expLenOffset = (2*nRead)*readExecutionTime;
+			// or maybe
+			// expLenOffset = ((2*nRead)-1)*readExecutionTime;
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				":setFowlerSamplingParameters:Exposure length offset due to nReads: "+expLenOffset+
+				" ms.");
+			exposureLengthSeconds -= ((double)expLenOffset)/1000.0;
+			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				":setFowlerSamplingParameters:Adjusted exposure length "+exposureLengthSeconds+" s.");
+			if(exposureLengthSeconds < 0.0)
+			{
+				throw new Exception(this.getClass().getName()+":setFowlerSamplingParameters:"+
+						    "Adjusted exposure length is too small ("+
+						    exposureLengthSeconds+").");
+			}
 			setFSParamCommand = new SetFSParamCommand();
 			setFSParamCommand.setCommand(nReset,nRead,1,exposureLengthSeconds,1);
 			setFSParamCommand.sendCommand();
@@ -586,11 +620,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				return false;
 			}
 			// calculate ramp overhead
-			resetExecutionTime = status.getPropertyInteger("ioi.config.FOWLER.reset_execution_time");
-			readExecutionTime = status.getPropertyInteger("ioi.config.FOWLER.read_execution_time");
-			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
-				":setFowlerSamplingParameters:resetExecutionTime = "+resetExecutionTime+
-				",readExecutionTime = "+readExecutionTime+".");
 			// there is one set of nReset resets, and TWO sets of nRead reads per AcquireRamp
 			rampOverheadTime = (resetExecutionTime*nReset)+(2*nRead*readExecutionTime);
 			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+

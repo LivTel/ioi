@@ -25,9 +25,9 @@ if ( ${?CLASSPATH} == 0 ) then
    setenv CLASSPATH ${classpath_string}
 endif
 if ( ${?HOST} == 0 ) then
-    setenv HOST ioi_host
+    setenv HOST ioilinux
 endif
-set host = ioi_host
+set host = ioilinux
 set port_number = 7373
 set tmp_file = /tmp/ioi_status_cron.txt
 set tmp_err_file = /tmp/ioi_status_cron_err.txt
@@ -42,8 +42,10 @@ set dewar_temperature_0 = `cat ${tmp_file} | grep 'Temperature.0 = ' | sed "s/.*
 set dewar_temperature_1 = `cat ${tmp_file} | grep 'Temperature.1 = ' | sed "s/.*Temperature.1 = \(.*\)/\1/g"`
 set heater_pcent = `cat ${tmp_file} | grep 'Heater PCent' | sed "s/Heater PCent = \(.*\)/\1/g"`
 set heater_status = `cat ${tmp_file} | grep 'Heater Status' | grep -v 'Heater Status String' | sed "s/Heater Status = \(.*\)/\1/g"`
+set ramp_ison_0 = `cat ${tmp_file} | grep 'Temperature.Ramp.Is_On.0' | sed "s/Temperature.Ramp.Is_On.0 = \(.*\)/\1/g"`
+set ramp_rate_0 = `cat ${tmp_file} | grep 'Temperature.Ramp.Rate.0' | sed "s/Temperature.Ramp.Rate.0 = \(.*\)/\1/g"`
 set heater_status_string = `cat ${tmp_file} | grep 'Heater Status String' | sed "s/Heater Status String = \(.*\)/\1/g"`
 if ( ! -r ${output_file} ) then
-    echo "Date,Date,Date,Dewar Temp,Dewar Temp0,Dewar Temp1,Heater PCent,Heater Status,Heater Status String" > ${output_file}
+    echo "Date,Date,Date,Dewar Temp,Dewar Temp0,Dewar Temp1,Heater PCent,Heater Status,Heater Status String,Ramp IsOn 0,Ramp Rate 0" > ${output_file}
 endif
-echo "${date_string},${date2_string},${date3_string},${dewar_temperature},${dewar_temperature_0},${dewar_temperature_1},${heater_pcent},${heater_status},${heater_status_string}" >> ${output_file}
+echo "${date_string},${date2_string},${date3_string},${dewar_temperature},${dewar_temperature_0},${dewar_temperature_1},${heater_pcent},${heater_status},${heater_status_string},${ramp_ison_0},${ramp_rate_0}" >> ${output_file}

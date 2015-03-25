@@ -303,10 +303,10 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			//cardImage = ioiFitsHeader.get("MJD");
 			//cardImage.setValue(date);
 		// EXPTIME
-			ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-				":setFitsHeaders:EXPTIME = "+(((double)exposureTime)/1000.0)+".");
-			cardImage = ioiFitsHeader.get("EXPTIME");
-			cardImage.setValue(new Double(((double)exposureTime)/1000.0));
+			//ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+			//	":setFitsHeaders:EXPTIME = "+(((double)exposureTime)/1000.0)+".");
+			//cardImage = ioiFitsHeader.get("EXPTIME");
+			//cardImage.setValue(new Double(((double)exposureTime)/1000.0));
 		// FILTER1
 			// diddly these don't exist at the moment
 			//cardImage = ioiFitsHeader.get("FILTER1");
@@ -796,6 +796,49 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 		}
 	}
+
+	/**
+	 * Method to flip FITS image data within a list of FITS images.
+	 * The images are flipped if the property "ioi.file.fits.flip" is true. The properties
+	 * "ioi.file.fits.flip.x" and "ioi.file.fits.flip.y" determine the direction of flipping.
+	 * @param fitsImageList A List, containing File object instances, where each item represents a FITS image
+	 *        within the directory or it's subdirectories.
+	 * @exception FitsFlipException Thrown if the image flipping method fails.
+	 * @see #ioi
+	 */
+	public void flipFitsFiles(List fitsImageList) throws FitsFlipException
+	{
+		FitsFlip fitsFlip = null;
+		File fitsFile = null;
+		boolean fitsFileFlip,flipX,flipY;
+
+		fitsFileFlip = status.getPropertyBoolean("ioi.file.fits.flip");
+		if(fitsFileFlip)
+		{
+			fitsFlip = ioi.getFitsFlip();
+			flipX = status.getPropertyBoolean("ioi.file.fits.flip.x");
+			flipY = status.getPropertyBoolean("ioi.file.fits.flip.y");
+			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				":flipFitsFiles:Flipping "+fitsImageList.size()+" FITS images.");
+			for(int fitsImageIndex=0;fitsImageIndex < fitsImageList.size(); fitsImageIndex++)
+			{
+				fitsFile = (File)(fitsImageList.get(fitsImageIndex));
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":flipFitsFiles:Flipping "+fitsFile.toString()+" in x:"+flipX+" in y:"+flipY);
+				fitsFlip.flip(fitsFile.toString(),flipX,flipY);
+			}
+			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				":flipFitsFiles:Finished.");
+		}
+		else
+		{
+			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				":flipFitsFiles:ioi.file.fits.flip is failse:Not flipping FITS images.");
+
+		}
+	}
+
+
 
 	/**
 	 * Rename the FITS files  specified into a standard LT run with a multrun in the configured LT FITS filename 
