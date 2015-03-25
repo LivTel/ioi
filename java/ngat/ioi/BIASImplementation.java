@@ -254,7 +254,7 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 			directory = findRampData(bFS,acquireRampCommandCallTime);
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Listing FITS images in Ramp Data directory "+directory+".");
-			fitsFileList = findFITSFilesInDirectory(directory);
+			fitsFileList = findFITSFilesInDirectory(bFS,directory);
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Adding FITS headers to "+fitsFileList.size()+" FITS images.");
 			// It can take up to 2 seconds per frame to add FITS headers to each frame
