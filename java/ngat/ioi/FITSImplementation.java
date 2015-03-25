@@ -541,8 +541,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * by acquireRampCommandCallTime.
 	 * <ul>
 	 * <li>The root directory to search from is found from the "ioi.data.directory.root" property.
-	 * <li>We call getFSMode() to get the 'bFS' value returned from GetConfig. 
-	 *     Based on this we work out the Fowler Sample mode 
+	 * <li>Based on bFS we work out the Fowler Sample mode 
 	 *     directory string to postpend to the root, and retrieve the relevant property, one of:
 	 *     'ioi.data.directory.up_the_ramp' or 'ioi.data.directory.fowler'.
 	 * <li>We create a file from the resultant string, and test it is a directory. If so, we list it's contents.
@@ -556,6 +555,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 *     </ul>
 	 * <li>The smallestDiffFile is converted into a string and returned.
 	 * </ul>
+	 * @param bFS Whether we are in Fowler Sampling mode (bFS == 1) or Read up the Ramp mode (bFS == 0).
 	 * @param acquireRampCommandCallTime A timestamp taken just before the AcquireRampCommand was started.
 	 * @return A string, containing the directory containing the FITS images associated with the ACQUIRERAMP
 	 *         just executed.
@@ -563,9 +563,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * @see #ioi
 	 * @see #status
 	 * @see IOIStatus#getProperty
-	 * @see HardwareImplementation#getFSMode
 	 */
-	protected String findRampData(long acquireRampCommandCallTime) 
+	protected String findRampData(int bFS, long acquireRampCommandCallTime) 
 		throws Exception
 	{
 		Date fileDate = null;
@@ -577,7 +576,6 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		String fsModeDirectoryString = null;
 		String directoryString = null;
 		long diffTime,smallestDiffTime;
-		int bFS;
 
 		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":findRampData:started.");
@@ -590,17 +588,13 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 			   ":findRampData:root directory:"+rootDirectoryString+".");
 		// get the current configuration of the array
-		bFS = getFSMode();
-		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-			   ":findRampData:getFSMode returned bFS = "+bFS+".");
 		if(bFS == 0)
 			fsModeDirectoryString = status.getProperty("ioi.data.directory.up_the_ramp");
 		else if(bFS == 1)
 			fsModeDirectoryString = status.getProperty("ioi.data.directory.fowler");
 		else
 		{
-			throw new Exception(this.getClass().getName()+
-					    ":findRampData:GetConfig returned illegal bFS value:"+bFS);
+			throw new Exception(this.getClass().getName()+":findRampData:Illegal bFS value:"+bFS);
 		}
 		directoryString = new String(rootDirectoryString+File.separator+fsModeDirectoryString+File.separator);
 		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
@@ -638,7 +632,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 					ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 						":findRampData:"+directoryList[i]+" has diff time "+
 						(diffTime/1000.0)+" seconds after acquire ramp command call time.");
-					// You would
+					// We are looking for the smmalest positive time 
+					// after the acquireRampCommandCallTime
 					if((diffTime >= 0)&&(diffTime < smallestDiffTime))
 					{
 						smallestDiffTime = diffTime;
@@ -684,6 +679,11 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * Given a directory, find all the FITS images in it.
 	 * We no longer look at subdirectories. The Teledyne software puts a Result/CDSResult.fits in it's 
 	 * date-stamped directory when running in FOWLER mode, however we don't want to annotate and rename that file.
+	 * This method now checks "ioi.file.fits.rename.read_up_ramp_as_cds". If true, the first two fits images
+	 * and the last two fits images in the read up the ramp directory are kept, and the rest are removed from the
+	 * returned list of images. This allows us to use read up the ramp to create a set of 4 fits files that can be
+	 * reduced as CDS images.
+	 * @param bFS Whether we are in Fowler Sampling mode (bFS == 1) or Read up the Ramp mode (bFS == 0).
 	 * @param directoryString A string containing the root directory to start the search at.
 	 * @return A List, containing File object instances, where each item represents a FITS image
 	 *        within the directory.
@@ -691,13 +691,23 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 *            representing a valid directory.
 	 * @exception Exception Thrown if listing a directory returns null.
 	 */
-	public List<File> findFITSFilesInDirectory(String directoryString) throws Exception, IllegalArgumentException
+	public List<File> findFITSFilesInDirectory(int bFS,String directoryString) throws Exception, 
+											  IllegalArgumentException
 	{
 		File directoryFile = null;
 		List<File> directoryList = new Vector<File>();
 		File fileList[];
 		List<File> fitsFileList = new Vector<File>();
+		boolean readUpRampAsCDS;
 
+		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+			   ":findFITSFilesInDirectory:Loading config.");
+		if(bFS == 0)
+		{
+			readUpRampAsCDS =  status.getPropertyBoolean("ioi.file.fits.rename.read_up_ramp_as_cds");
+		}
+		else
+			readUpRampAsCDS = false;
 		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":findFITSFilesInDirectory:Starting from directory:"+directoryString+".");
 		directoryFile = new File(directoryString);
@@ -736,23 +746,56 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 				//}
 				//else
 				//{
-					// is it a fits file?
-					if(fileList[i].toString().endsWith(".fits"))
-					{
-						ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
-							":findFITSFilesInDirectory:Adding FITS image:"+fileList[i]+
-							" to results list.");
-						fitsFileList.add(fileList[i]);	
-					}
-					else
-					{
-						ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-							":findFITSFilesInDirectory:File:"+fileList[i]+
-							" not a FITS image.");
-					}
-				 //}
+				// is it a fits file?
+				if(fileList[i].toString().endsWith(".fits"))
+				{
+					ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+						":findFITSFilesInDirectory:Adding FITS image:"+fileList[i]+
+						" to results list.");
+					fitsFileList.add(fileList[i]);	
+				}
+				else
+				{
+					ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+						":findFITSFilesInDirectory:File:"+fileList[i]+
+						" not a FITS image.");
+				}
+				//}
 			}// end for over files in that directory
 		}// end while directories in the list
+		if(readUpRampAsCDS)
+		{
+			int originalFitsFileListLength;
+
+			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				":findFITSFilesInDirectory:Doing Read up the Ramp as CDS: "+
+				"Keep first two and last two FITS images and remove intermediate files.");
+			originalFitsFileListLength = fitsFileList.size();
+			for(int i = 0; i < 2; i++)
+			{
+				ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+					":findFITSFilesInDirectory:Doing Read up the Ramp as CDS: Keeping:"+
+					fitsFileList.get(i));
+			}
+			// remove index 2 originalFitsFileListLength-4 times
+			// index 0 and 1 contains fist 2 images
+			// remember list is shuffled up as index 2 is removed, and list.size() reduces.
+			// therefore use originalFitsFileListLength-2.
+			for(int i = 2; i < (originalFitsFileListLength-2); i++)
+			{
+				ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+					":findFITSFilesInDirectory:Doing Read up the Ramp as CDS: Removing:"+
+					fitsFileList.get(2));
+				fitsFileList.remove(2);
+			}
+			// So now indexes 2 and 3 in the list should be the last 2 frames.
+			for(int i = 2; i < fitsFileList.size();i++)
+			{
+				ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+					":findFITSFilesInDirectory:Doing Read up the Ramp as CDS: Keeping:"+
+					fitsFileList.get(i));
+			}
+		}
 		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
 			":findFITSFilesInDirectory:directory:"+directoryString+" contained "+fitsFileList.size()+
 			" FITS images.");
@@ -904,6 +947,82 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 				":renameFitsFiles:fitsFilenameRename was false, NOT renaming FITS filenames.");
 		}
 		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":renameFitsFiles:Finished.");
+	}
+
+	/**
+	 * Delete the original IDL directory, all remaining FITS images within it, and sub-directories.
+	 * @param directoryString A string containing the root directory to delete.
+	 * @exception Exception Thrown if an error occurs.
+	 */
+	public void deleteIDLDirectory(String directoryString) throws Exception
+	{
+		File directoryFile = null;
+		List<File> directoryList = new Vector<File>();
+		File fileList[];
+		boolean deleteDirectory;
+
+		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":deleteIDLDirectory:Deleting "+
+			directoryString+".");
+		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+			   ":deleteIDLDirectory:Starting from directory:"+directoryString+".");
+		directoryFile = new File(directoryString);
+		if(directoryFile.isDirectory() == false)
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+":deleteIDLDirectory:"+
+							   directoryString+" not a directory.");
+		}
+		// add the top directory to the list of directories to search
+		directoryList.add(directoryFile);
+		// iterate over the directories to search
+		while(directoryList.size() > 0)
+		{
+			// get the latest directory from the directory list
+			directoryFile = (File)(directoryList.get(directoryList.size()-1));
+			ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+
+				":deleteIDLDirectory:Currently listing directory:"+directoryFile+".");
+			// get a list of files in that directory.
+			fileList = directoryFile.listFiles();
+			if(fileList == null)
+			{
+				throw new Exception(this.getClass().getName()+":deleteIDLDirectory:"+
+						    "Directory list was null:"+directoryFile);
+			}
+			deleteDirectory = true;
+			for(int i = 0; i < fileList.length; i++)
+			{
+				if(fileList[i].isDirectory())
+				{
+					// add the directory to the list of directories to search
+					ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+						":deleteIDLDirectory:Adding directory:"+fileList[i]+
+						" to search directory list.");
+					directoryList.add(fileList[i]);
+					// we can't delete the directory we are currently in as there
+					// is a subdirectory to delete first
+					deleteDirectory = false;
+				}
+				else
+				{
+					ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+						":deleteIDLDirectory:Deleteing:"+fileList[i]+".");
+					fileList[i].delete();	
+				}
+
+			}// end for over files in that directory
+			// if all the files in this directory have been deleted, remove the directory from the
+			// list, and physically delete the directory on disk
+			// Otherwise the current directory remains in the list, and will hopefully be reselected for
+			// deletion after it's subdirectories have been process and deleted.
+			if(deleteDirectory)
+			{
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					":deleteIDLDirectory:Deleteing:"+directoryFile+".");
+				directoryFile.delete();
+				directoryList.remove(directoryFile);
+			}
+		}// end while directories in the list
+		ioi.log(Logging.VERBOSITY_VERBOSE,this.getClass().getName()+":deleteIDLDirectory:Finished Deleting "+
+			directoryString+".");
 	}
 
 	/**

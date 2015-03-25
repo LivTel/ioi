@@ -114,8 +114,11 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * 	<li>We call <b>findFITSFilesInDirectory</b> to locate all the generated FITS files from the ramp.
 	 * 	<li>We call <b>addFitsHeadersToFitsImages</b> to add the previously retrieved ISS/BSS/IO:I headers
 	 *          to the IDL Socket Server generated FITS images.
+	 * 	<li>We call <b>flipFitsFiles</b> which, depending on a config option, 
+	 *          flips the image data inside the FITS images to the correct orientation.
 	 * 	<li>We call <b>renameFitsFiles</b> which, depending on a config option, 
 	 *          renames the IDL Socket Server generated FITS images to LT standard filenames.
+	 *      <li>We call <b>deleteIDLDirectory</b> which deletes the IDL directory and any remaining data within it.
 	 * 	<li>We call <b>sendMultrunACK</b> to the client to ensure the client connection does not time out.
 	 * 	<li>We keep track of the generated filenames in the list. We increment the exposure number in
 	 *          the status object (<b>setExposureNumber</b>).
@@ -146,6 +149,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @see FITSImplementation#addFitsHeadersToFitsImages
 	 * @see FITSImplementation#flipFitsFiles
 	 * @see FITSImplementation#renameFitsFiles
+	 * @see FITSImplementation#deleteIDLDirectory
 	 * @see EXPOSEImplementation#sendACK
 	 * @see EXPOSEImplementation#reduceExpose
 	 * @see IOIStatus#setExposureLength
@@ -346,13 +350,16 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			// find the data just acquired
 			try
 			{
+				// findRampData
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":processCommand:Finding ramp data for exposure index "+index+".");
-				directory = findRampData(acquireRampCommandCallTime);
+				directory = findRampData(bFS,acquireRampCommandCallTime);
+				// findFITSFilesInDirectory
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":processCommand:Listing FITS images in Ramp Data directory "+
 					directory+".");
-				fitsFileList = findFITSFilesInDirectory(directory);
+				fitsFileList = findFITSFilesInDirectory(bFS,directory);
+				// addFitsHeadersToFitsImages
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":processCommand:Adding FITS headers to "+fitsFileList.size()+
 					" FITS images.");
@@ -368,12 +375,18 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					return multRunDone;
 				}
 				addFitsHeadersToFitsImages(fitsFileList);
+				// flipFitsFiles
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":processCommand:Flip image data in FITS images (if enabled).");
 				flipFitsFiles(fitsFileList);
+				// renameFitsFiles
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":processCommand:Rename generated FITS images to LT spec (if enabled).");
 				renameFitsFiles(fitsFileList,exposureCode);
+				// deleteDirectory
+				// We now want to delete the original IDL generated directory, to improve the 
+				// speed of findRampData
+				deleteIDLDirectory(directory);
 			}
 			catch(Exception e)
 			{

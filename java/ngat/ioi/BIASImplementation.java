@@ -251,7 +251,7 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 		{
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Finding ramp data.");
-			directory = findRampData(acquireRampCommandCallTime);
+			directory = findRampData(bFS,acquireRampCommandCallTime);
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Listing FITS images in Ramp Data directory "+directory+".");
 			fitsFileList = findFITSFilesInDirectory(directory);
