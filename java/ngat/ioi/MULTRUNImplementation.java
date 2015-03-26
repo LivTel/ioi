@@ -406,7 +406,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			}
 			status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Ramp data found in directory:"+directory+" for exposure index "+
+				":processCommand:Ramp data in directory:"+directory+" processed for exposure index "+
 				index+".");
 			// return the FITS files generated for this exposure
 			if(fitsFileList != null)
