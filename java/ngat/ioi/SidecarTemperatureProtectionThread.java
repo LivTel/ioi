@@ -320,7 +320,6 @@ public class SidecarTemperatureProtectionThread extends Thread
 	 *     loop is no longer running.
 	 * </ul>
 	 * @see #stoppingThread
-	 * @see #finishThreadLoop
 	 * @see #THREAD_STATE_RUNNING
 	 * @see #stoppingThread
 	 */

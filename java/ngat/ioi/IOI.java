@@ -151,6 +151,13 @@ public class IOI
 	 * to the IDL socket server to turn off power to the ASIC and stop it overheating in a vacuum.
 	 */
 	protected SidecarTemperatureProtectionThread sidecarTemperatureProtectionThread = null;
+	/**
+	 * This thread is started independently of any robotic command invocations.
+	 * It monitors a list on which data processing items can be added 
+	 * (acquired ramps that need the data post-processing).
+	 * @see DataProcessingThread
+	 */
+	protected DataProcessingThread dataProcessingThread = null;
 
 	/**
 	 * init method.
@@ -1143,12 +1150,30 @@ public class IOI
 	}
 
 	/**
+	 * Start the data processing thread.
+	 * @exception Exception Thrown if the init method fails (rioi not set).
+	 * @see #dataProcessingThread
+	 * @see DataProcessingThread
+	 * @see DataProcessingThread#setIOI
+	 * @see DataProcessingThread#init
+	 */
+	protected void startDataProcessingThread() throws Exception
+	{
+		dataProcessingThread = new DataProcessingThread();
+		dataProcessingThread.setIOI(this);
+		dataProcessingThread.init();
+		dataProcessingThread.start();
+	}
+
+	/**
 	 * This is the run routine. It starts a new server to handle incoming requests, and waits for the
 	 * server to terminate.
 	 * @see #server
 	 * @see #ioiPortNumber
 	 * @see #titServer
 	 * @see #titPortNumber
+	 * @see #dataProcessingThread
+	 * @see #startDataProcessingThread
 	 */
 	private void run()
 	{
@@ -1159,6 +1184,14 @@ public class IOI
 		server.setPriority(status.getThreadPriorityServer());
 		titServer = new TitServer("TitServer on port "+titPortNumber,titPortNumber);
 		titServer.setPriority(status.getThreadPriorityTIT());
+		try
+		{
+			startDataProcessingThread();
+		}
+		catch(Exception e)
+		{
+			error(this.getClass().getName()+":run:",e);
+		}
 		nowDate = new Date();
 		log(Logging.VERBOSITY_VERY_TERSE,
 			this.getClass().getName()+":run:server started at:"+nowDate.toString());
@@ -1180,6 +1213,7 @@ public class IOI
 		{
 			error(this.getClass().getName()+":run:",e);
 		}
+		dataProcessingThread.quit();
 	}
 
 	/**
@@ -1286,6 +1320,16 @@ public class IOI
 	public FitsFlip getFitsFlip()
 	{
 		return fitsFlip;
+	}
+
+	/**
+	 * Get a reference to the data processing thread.
+	 * @return The data processing thread instance.
+	 * @see #dataProcessingThread
+	 */
+	public DataProcessingThread getDataProcessingThread()
+	{
+		return dataProcessingThread;
 	}
 
 	/**

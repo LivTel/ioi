@@ -109,19 +109,13 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 *          (<b>setExposureStartTime</b>), and set the status's current mode (<b>setCurrentMode</b>) 
 	 *           to exposure.
 	 * 	<li>We call <b>acquireRamp</b> to do the exposure.
-	 * 	<li>We call <b>findRampData</b> to find where the IDL Socket Server has created a new directory with 
-	 *          the acquired data.
-	 * 	<li>We call <b>findFITSFilesInDirectory</b> to locate all the generated FITS files from the ramp.
-	 * 	<li>We call <b>addFitsHeadersToFitsImages</b> to add the previously retrieved ISS/BSS/IO:I headers
-	 *          to the IDL Socket Server generated FITS images.
-	 * 	<li>We call <b>flipFitsFiles</b> which, depending on a config option, 
-	 *          flips the image data inside the FITS images to the correct orientation.
-	 * 	<li>We call <b>renameFitsFiles</b> which, depending on a config option, 
-	 *          renames the IDL Socket Server generated FITS images to LT standard filenames.
-	 *      <li>We call <b>deleteIDLDirectory</b> which deletes the IDL directory and any remaining data within it.
-	 * 	<li>We call <b>sendMultrunACK</b> to the client to ensure the client connection does not time out.
-	 * 	<li>We keep track of the generated filenames in the list. We increment the exposure number in
-	 *          the status object (<b>setExposureNumber</b>).
+	 *      <li>We add the exposure start time timestamp to the dataprocessing thread, 
+	 *          which will post process the acquired data. This involves finding the data directory, 
+	 *          finding the FITS images in the directory, adding IO:I/ISS/BSS FITS headers to it, 
+	 *          flipping the FITS images, renaming the FITS images from the IDL format to the LT filename format, 
+	 *          and deleting the IDL directory. This is all done asynchronously whilst the next ramp is being 
+	 *          acquired.
+	 * 	<li>We increment the exposure number in the status object (<b>setExposureNumber</b>).
 	 * 	</ul>
 	 * <li>We offset the telscope back to 0,0 using resetTelescopeOffset.
 	 * <li>If we are going to call the DpRt, we iterate over the filename list calling <b>reduceExpose</b>
@@ -144,12 +138,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @see FITSImplementation#setFitsHeaders
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#getFitsHeadersFromBSS
-	 * @see FITSImplementation#findRampData
-	 * @see FITSImplementation#findFITSFilesInDirectory
-	 * @see FITSImplementation#addFitsHeadersToFitsImages
-	 * @see FITSImplementation#flipFitsFiles
-	 * @see FITSImplementation#renameFitsFiles
-	 * @see FITSImplementation#deleteIDLDirectory
 	 * @see EXPOSEImplementation#sendACK
 	 * @see EXPOSEImplementation#reduceExpose
 	 * @see IOIStatus#setExposureLength
@@ -158,9 +146,11 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @see IOIStatus#setExposureStartTime
 	 * @see IOIStatus#setCurrentMode
 	 * @see IOIStatus#getCurrentMode
+	 * @see IOI#getDataProcessingThread
 	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_IDLE
 	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_EXPOSING
 	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_READING_OUT
+	 * @see DataProcessingThread#addDataForProcessing
 	 */
 	public COMMAND_DONE processCommand(COMMAND command)
 	{
@@ -169,10 +159,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		MULTRUN_DONE multRunDone = new MULTRUN_DONE(command.getId());
 		FitsFilename fitsFilename = null;
 		Vector<File> reduceFilenameList = null;
-		List<File> fitsFileList = null;
+		DataProcessingThread dataProcessingThread = null;
 		File fitsFile = null;
 		String obsType = null;
-		String directory = null;
 		String filename = null;
 		double exposureLengthSeconds;
 		long acquireRampCommandCallTime;
@@ -180,6 +169,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		char exposureCode;
 		boolean retval = false;
 		boolean fitsFilenameRename;
+		boolean done;
 
 		ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
 			":processCommand:Starting MULTRUN with exposure length "+multRunCommand.getExposureTime()+
@@ -193,6 +183,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		status.setExposureCount(multRunCommand.getNumberExposures());
 		status.setExposureNumber(0);
 		status.setExposureLength(multRunCommand.getExposureTime());
+		// retrieve the data processing thread
+		dataProcessingThread = ioi.getDataProcessingThread();
 		// if we are renaming the FITS images, increment the MULTRUN number
 		fitsFilenameRename = status.getPropertyBoolean("ioi.file.fits.rename");
 		if(fitsFilenameRename)
@@ -246,7 +238,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 					":processCommand:sendACK failed for index "+index+
 					" : Reseting telescope offset.");
-				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
@@ -260,7 +251,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 					":processCommand:offsetTelescope failed for index "+index+
 					" : Reseting telescope offset.");
-				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
@@ -275,7 +265,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 					":processCommand:setFitsHeaders failed for index "+index+
 					" : Reseting telescope offset.");
-				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
@@ -284,7 +273,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 					":processCommand:getFitsHeadersFromISS failed for index "+index+
 					" : Reseting telescope offset.");
-				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
@@ -293,7 +281,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 					":processCommand:testAbort failed for index "+index+
 					" : Reseting telescope offset.");
-				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
@@ -302,7 +289,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 					":processCommand:getFitsHeadersFromBSS failed for index "+index+
 					" : Reseting telescope offset.");
-				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
@@ -311,7 +297,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 					":processCommand:testAbort failed for index "+index+
 					" : Reseting telescope offset.");
-				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
@@ -322,7 +307,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 					":processCommand:sendACK failed for index "+index+
 					" : Reseting telescope offset.");
-				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
@@ -341,95 +325,27 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					":processCommand:acquireRamp failed for index "+index+
 					" : Reseting telescope offset.");
 				status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
-				//moveFilterToBlank(multRunCommand,multRunDone);
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
 			// We are not really reading out, but managing the acquired data
 			status.setCurrentMode(GET_STATUS_DONE.MODE_READING_OUT);
-			// find the data just acquired
+			// Add this ramp to the data processing threads list of data to process
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Adding exposure index "+index+" with acquire ramp start time "+
+				acquireRampCommandCallTime+" to the data processing list.");
 			try
 			{
-				// findRampData
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Finding ramp data for exposure index "+index+".");
-				directory = findRampData(bFS,acquireRampCommandCallTime);
-				// findFITSFilesInDirectory
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Listing FITS images in Ramp Data directory "+
-					directory+".");
-				fitsFileList = findFITSFilesInDirectory(bFS,directory);
-				// addFitsHeadersToFitsImages
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Adding FITS headers to "+fitsFileList.size()+
-					" FITS images.");
-				// It can take up to 2 seconds per frame to add FITS headers to each frame
-				// send an ACK to stop a timeout
-				if(sendACK(multRunCommand,multRunDone,(fitsFileList.size()*2000)) == false)
-				{
-					ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-						":processCommand:sendACK failed for index "+index+
-						" : Reseting telescope offset.");
-					//moveFilterToBlank(multRunCommand,multRunDone);
-					resetTelescopeOffset(multRunCommand,multRunDone);
-					return multRunDone;
-				}
-				addFitsHeadersToFitsImages(fitsFileList);
-				// flipFitsFiles
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Flip image data in FITS images (if enabled).");
-				flipFitsFiles(fitsFileList);
-				// renameFitsFiles
-				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					":processCommand:Rename generated FITS images to LT spec (if enabled).");
-				renameFitsFiles(fitsFileList,exposureCode);
-				// deleteDirectory
-				// We now want to delete the original IDL generated directory, to improve the 
-				// speed of findRampData
-				deleteIDLDirectory(directory);
+				dataProcessingThread.addDataForProcessing(bFS,acquireRampCommandCallTime,
+									  ioiFitsHeader,exposureCode);
 			}
 			catch(Exception e)
 			{
-				retval = false;
 				ioi.error(this.getClass().getName()+
-					  ":processCommand:Processing acquired data for exposure index "+index+
-					  " failed:"+command+":",e);
-				status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
-				//moveFilterToBlank(multRunCommand,multRunDone);
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1201);
-				multRunDone.setErrorString(this.getClass().getName()+
-							   ":processCommand:findRampData failed:"+
-							   e.toString());
-				multRunDone.setSuccessful(false);
-				return multRunDone;
+					  ":processCommand:Added data for processing failed:",e);
 			}
-			status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
-			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Ramp data in directory:"+directory+" processed for exposure index "+
-				index+".");
-			// return the FITS files generated for this exposure
-			if(fitsFileList != null)
-			{
-				for(int fitsFileIndex = 0; fitsFileIndex < fitsFileList.size(); fitsFileIndex++)
-				{
-					fitsFile = (File)(fitsFileList.get(fitsFileIndex));
-					filename = fitsFile.getAbsolutePath();
-					// send acknowledge to say frames are completed.
-					if(!sendMultrunACK(multRunCommand,multRunDone,filename))
-					{
-						ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-							":processCommand:sendMultrunACK failed for index "+index+
-							" : Reseting telescope offset.");
-						//moveFilterToBlank(multRunCommand,multRunDone);
-						resetTelescopeOffset(multRunCommand,multRunDone);
-						return multRunDone;
-					}
-				}// end for on fits filenames
-			}// end if
+			// increment exposure number
 			status.setExposureNumber(index+1);
-			// add filename to list for data pipeline processing.
-			reduceFilenameList.addAll(fitsFileList);
 			// test whether an abort has occured.
 			if(testAbort(multRunCommand,multRunDone) == true)
 			{
@@ -437,7 +353,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			}
 			index++;
 		}// end while
-		//moveFilterToBlank(multRunCommand,multRunDone);
 	// reset telescope offsets
 		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 			":processCommand:Reseting telescope offset.");
@@ -448,64 +363,50 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		{
 			return multRunDone;
 		}
-		index = 0;
-		retval = true;
-	// call pipeline to process data and get results
-		if(multRunCommand.getPipelineProcess())
+		// wait for data processing to be finished
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":processCommand:Waiting for data processing to finish.");
+		done = false;
+		while(done == false)
 		{
-			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Data pipelining.");
-			while(retval&&(index < reduceFilenameList.size()))
+			int listSize;
+
+			if(sendACK(multRunCommand,multRunDone,rampOverheadTime) == false)
 			{
-				filename = (String)(reduceFilenameList.get(index).toString());
-			// do reduction.
-				retval = reduceExpose(multRunCommand,multRunDone,filename);
-			// send acknowledge to say frame has been reduced.
-				multRunDpAck = new MULTRUN_DP_ACK(command.getId());
-				multRunDpAck.setTimeToComplete(serverConnectionThread.getDefaultAcknowledgeTime());
-			// copy Data Pipeline results from DONE to ACK
-				multRunDpAck.setFilename(multRunDone.getFilename());
-				multRunDpAck.setCounts(multRunDone.getCounts());
-				multRunDpAck.setSeeing(multRunDone.getSeeing());
-				multRunDpAck.setXpix(multRunDone.getXpix());
-				multRunDpAck.setYpix(multRunDone.getYpix());
-				multRunDpAck.setPhotometricity(multRunDone.getPhotometricity());
-				multRunDpAck.setSkyBrightness(multRunDone.getSkyBrightness());
-				multRunDpAck.setSaturation(multRunDone.getSaturation());
+				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+":processCommand:"+
+					"sendACK failed whilst waiting for data processing to complete:"+
+					"Reseting telescope offset.");
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				return multRunDone;
+			}
+			// get current size of list
+			listSize = dataProcessingThread.getListSize();
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Current data processing list size = "+listSize);
+			// we have finished if there is no more data to process.
+			// Note not really true as the last data processing item might still be being processed.
+			done = (listSize == 0);
+			if(done == false)
+			{
 				try
 				{
-					serverConnectionThread.sendAcknowledge(multRunDpAck);
+					Thread.sleep(1000);
 				}
-				catch(IOException e)
+				catch(InterruptedException e)
 				{
-					retval = false;
-					ioi.error(this.getClass().getName()+
-						":processCommand:sendAcknowledge(DP):"+command+":"+e.toString());
-					multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1203);
-					multRunDone.setErrorString(e.toString());
-					multRunDone.setSuccessful(false);
-					return multRunDone;
 				}
-				if(testAbort(multRunCommand,multRunDone) == true)
-				{
-					retval = false;
-				}
-				index++;
-			}// end while on MULTRUN exposures
-		}// end if Data Pipeline is to be called
-		else
-		{
-		// no pipeline processing occured, set return value to something bland.
+			}
+		}// while !done
+		// no pipeline processing, set return value to something bland.
 		// set filename to last filename exposed.
-			multRunDone.setFilename(filename);
-			multRunDone.setCounts(0.0f);
-			multRunDone.setSeeing(0.0f);
-			multRunDone.setXpix(0.0f);
-			multRunDone.setYpix(0.0f);
-			multRunDone.setPhotometricity(0.0f);
-			multRunDone.setSkyBrightness(0.0f);
-			multRunDone.setSaturation(false);
-		}
+		multRunDone.setFilename(filename);
+		multRunDone.setCounts(0.0f);
+		multRunDone.setSeeing(0.0f);
+		multRunDone.setXpix(0.0f);
+		multRunDone.setYpix(0.0f);
+		multRunDone.setPhotometricity(0.0f);
+		multRunDone.setSkyBrightness(0.0f);
+		multRunDone.setSaturation(false);
 	// if a failure occurs, return now
 		if(!retval)
 			return multRunDone;
@@ -601,9 +502,11 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			// software waits between the end of the last of the first set of reads and 
 			// the start of the second set of reads.
 			// Therefore reduce exposure length sent to SetFSParam as follows:
-			expLenOffset = (2*nRead)*readExecutionTime;
+			//expLenOffset = (2*nRead)*readExecutionTime;
 			// or maybe
-			// expLenOffset = ((2*nRead)-1)*readExecutionTime;
+			//expLenOffset = ((2*nRead)-1)*readExecutionTime;
+			// Current calculation is one set of reads
+			expLenOffset = nRead*readExecutionTime;
 			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
 				":setFowlerSamplingParameters:Exposure length offset due to nReads: "+expLenOffset+
 				" ms.");
