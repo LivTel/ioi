@@ -178,6 +178,17 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			      new Integer(sidecarTemperatureProtectionThreadState));
 		hashTable.put("Sidecar Temperature Protection State String",
 			 SidecarTemperatureProtectionThread.stateToString(sidecarTemperatureProtectionThreadState));
+		// update detector temp instrument status based on sidecar temperature protection status
+		// If the state is known good RUNNING update detector temp instrument status to known good
+		// If the state is known bad FAIL_TEMP FAIL_COMMS update detector temp instrument status to known bad
+		// If the state is INIT/NOT_RUNNING/STOPPED don't update detector temp instrument status
+		if(sidecarTemperatureProtectionThreadState == SidecarTemperatureProtectionThread.THREAD_STATE_RUNNING)
+			detectorTemperatureInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_OK;
+		else if ((sidecarTemperatureProtectionThreadState == SidecarTemperatureProtectionThread.THREAD_STATE_FAIL_TEMP)||
+			 (sidecarTemperatureProtectionThreadState == SidecarTemperatureProtectionThread.THREAD_STATE_FAIL_COMMS))
+			detectorTemperatureInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_FAIL;
+		hashTable.put(GET_STATUS_DONE.KEYWORD_DETECTOR_TEMPERATURE_INSTRUMENT_STATUS,
+			      detectorTemperatureInstrumentStatus);
 	// intermediate level information - basic plus controller calls.
 		if(getStatusCommand.getLevel() >= GET_STATUS.LEVEL_INTERMEDIATE)
 		{
@@ -401,6 +412,8 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 * <li>ioi.get_status.detector.temperature.cold.warn
 	 * <li>ioi.get_status.detector.temperature.cold.fail
 	 * </ul>
+	 * Note the sidecar temperature detection thread status is also propagated into the detector temperature status
+	 * in the main command processing method.
 	 * @param currentTemperature The current temperature in degrees Kelvin.
 	 * @exception NumberFormatException Thrown if the config is not a valid double.
 	 * @see #hashTable
@@ -420,8 +433,9 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		warmFailTemperature = status.getPropertyDouble("ioi.get_status.detector.temperature.warm.fail");
 		coldWarnTemperature = status.getPropertyDouble("ioi.get_status.detector.temperature.cold.warn");
 		coldFailTemperature = status.getPropertyDouble("ioi.get_status.detector.temperature.cold.fail");
-		// set status
-		if(currentTemperature.length > 0)
+		// initialise status to OK, if we have detector temperatures to test
+		// and the sidecar temperature detection thread has not already set the status to OK/FAIL.
+		if((currentTemperature.length > 0)&&(detectorTemperatureInstrumentStatus.equals(GET_STATUS_DONE.VALUE_STATUS_UNKNOWN)))
 			detectorTemperatureInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_OK;
 		for(int i = 0; i < currentTemperature.length; i++)
 		{
