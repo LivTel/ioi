@@ -1,0 +1,41 @@
+#!/bin/csh
+# ioi_heater_pcent_plot <ioi_status_cron_<doy>.csv> [<ioi_status_cron_<doy>.csv>...]
+if( $#argv < 2 ) then
+	echo "ioi_heater_pcent_plot <ioi_status_cron_<doy>.csv> [<ioi_status_cron_<doy>.csv>...]"
+	exit 1
+endif
+set gnuplot_data_file = "/tmp/ioi_heater_pcent_gnuplot_data.txt"
+set min_doy = 365
+set max_doy = 1
+rm ${gnuplot_data_file}
+foreach csvfile ( $argv )
+	echo "Processing ${csvfile}"
+	# retrieve doy from csvfile
+	set doy = `echo ${csvfile} | sed "s/ioi_status_cron_\(.*\).csv/\1/"`
+	# remove leading zeros from doy
+	set doy = `echo $doy | bc`
+	echo "doy is ${doy}"
+	# Add data to ${gnuplot_data_file}
+	cat ${csvfile} | sed "s/,/ /g" >> ${gnuplot_data_file}
+	# Update min/max doy
+	if ( ${doy} < ${min_doy} ) then
+		set min_doy = ${doy}
+	endif
+	if ( ${doy} > ${max_doy} ) then
+		set max_doy = ${doy}
+	endif
+end
+set output_png_filename = "ioi_heater_pcent_plot_${min_doy}_${max_doy}.png"
+echo "Output plot to ${output_png_filename}"
+set gnuplot_command_file = "/tmp/ioi_heater_pcent.gnuplot"
+echo "set xdata time" > ${gnuplot_command_file}
+echo 'set timefmt "%s"' >> ${gnuplot_command_file}
+# Sat Apr 4 11:55:06 UTC 2015 20150404115506 1428148506 85.044 85.044 158.44 39.5 0 Ok
+# Column 8 is seconds since the epoch
+# Column 12 is heater pcent
+echo "plot '"${gnuplot_data_file}"' using 8:12" >> ${gnuplot_command_file}
+echo "set term png" >> ${gnuplot_command_file}
+echo 'set output "'${output_png_filename}'"' >> ${gnuplot_command_file}
+echo "replot" >> ${gnuplot_command_file}
+#set term png size 1024x768
+gnuplot < ${gnuplot_command_file}
