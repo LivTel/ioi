@@ -482,7 +482,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 						      double exposureLengthSeconds)
 	{
 		SetFSParamCommand setFSParamCommand = null;
-		int nReset,nRead,resetExecutionTime,readExecutionTime,expLenOffset;
+		int nReset,nRead,resetExecutionTime,readExecutionTime,expLenOffsetMS,exposureLengthMS;
 
 		try
 		{
@@ -497,28 +497,56 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				",readExecutionTime = "+readExecutionTime+".");
 			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
 				":setFowlerSamplingParameters:Requested exposure length "+exposureLengthSeconds+" s.");
+			// convert input exposure length to ms
+			exposureLengthMS = (int)(exposureLengthSeconds*1000.0);
 			// The exposure actually includes two sets of nReads 
 			// The exposure length sent to SetFSParam is the length of time the IDL
 			// software waits between the end of the last of the first set of reads and 
 			// the start of the second set of reads.
-			// Therefore reduce exposure length sent to SetFSParam as follows:
-			//expLenOffset = (2*nRead)*readExecutionTime;
-			// or maybe
-			//expLenOffset = ((2*nRead)-1)*readExecutionTime;
-			// Current calculation is one set of reads
-			expLenOffset = nRead*readExecutionTime;
+			// The data reduction pipeline subtracts (in a nReads=2 situation) 4-2 and 3-1, and then
+			// averages the result.
+			// Therefore we need to subtract one set of reads from the supplied exposure length to
+			// pass to the IDL software an exposure length that will result in what we requested.
+			expLenOffsetMS = nRead*readExecutionTime;
 			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
-				":setFowlerSamplingParameters:Exposure length offset due to nReads: "+expLenOffset+
+				":setFowlerSamplingParameters:Exposure length offset due to nReads: "+expLenOffsetMS+
 				" ms.");
-			exposureLengthSeconds -= ((double)expLenOffset)/1000.0;
+			exposureLengthMS -= expLenOffsetMS;
 			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
-				":setFowlerSamplingParameters:Adjusted exposure length "+exposureLengthSeconds+" s.");
-			if(exposureLengthSeconds < 0.0)
+				":setFowlerSamplingParameters:Adjusted exposure length "+exposureLengthMS+
+				" ms due to "+nRead+" reads.");
+			// But the IDL software addds an extra reads worth of exposure length _IF_ the IDL supplied
+			// exposure length is > 1 read (1.4s).
+			if(exposureLengthMS > readExecutionTime)
+			{
+				// So we need to subtract another readExecutionTime from the exposure length.
+				exposureLengthMS -= readExecutionTime;
+				ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+					":setFowlerSamplingParameters:Adjusted exposure length "+exposureLengthMS+
+					" ms after extra IDL software adjustment.");
+				// But if the result is then < readExecutionTime (1.4s) 
+				// the original exposure length is one 
+				// we _cannot_ obtain with the IDL software, 
+				// as in this case the readExecutionTime (1.4s) seconds is no longer added!
+				if(exposureLengthMS < readExecutionTime)
+				{
+					throw new Exception(this.getClass().getName()+":setFowlerSamplingParameters:"+
+					 "Due to IDL software errors this exposure length is impossible to obtain: "+
+							    "Requested exposure length "+exposureLengthSeconds+
+							    " s : Adjusted exposure length "+exposureLengthMS+" ms.");
+				}
+			}
+			// The IDL software can't wait less than zero seconds between the end of one set of reads
+			// and the start of the other set of reads
+			if(exposureLengthMS < 0)
 			{
 				throw new Exception(this.getClass().getName()+":setFowlerSamplingParameters:"+
-						    "Adjusted exposure length is too small ("+
-						    exposureLengthSeconds+").");
+						    "Adjusted exposure length is too small:"+
+						    exposureLengthMS+" ms : Requested exposure length "+
+						    exposureLengthSeconds+" s.");
 			}
+			// convert exposure length from ms to s.
+			exposureLengthSeconds = ((double)exposureLengthMS)/1000.0;
 			setFSParamCommand = new SetFSParamCommand();
 			setFSParamCommand.setCommand(nReset,nRead,1,exposureLengthSeconds,1);
 			setFSParamCommand.sendCommand();
