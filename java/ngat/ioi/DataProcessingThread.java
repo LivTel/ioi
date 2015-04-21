@@ -46,7 +46,7 @@ public class DataProcessingThread extends Thread
 	 */
 	public DataProcessingThread()
 	{
-		super();
+		super("DataProcessingThread");
 	}
 	
 	/**

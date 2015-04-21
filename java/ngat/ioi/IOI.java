@@ -1179,7 +1179,7 @@ public class IOI
 	{
 		Date nowDate = null;
 
-		server = new IOITCPServer("IOI",ioiPortNumber);
+		server = new IOITCPServer("IOI:TCPServer",ioiPortNumber);
 		server.setIOI(this);
 		server.setPriority(status.getThreadPriorityServer());
 		titServer = new TitServer("TitServer on port "+titPortNumber,titPortNumber);

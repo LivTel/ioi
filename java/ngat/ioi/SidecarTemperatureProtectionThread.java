@@ -137,7 +137,7 @@ public class SidecarTemperatureProtectionThread extends Thread
 	 */
 	public SidecarTemperatureProtectionThread()
 	{
-		super();
+		super("SidecarTemperatureProtectionThread");
 		threadState = THREAD_STATE_INIT;
 	}
 
