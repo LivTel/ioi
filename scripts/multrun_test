@@ -1,0 +1,28 @@
+#!/bin/csh
+# Keep sending Multruns until one fails.
+set test_dir = /icc/bin/ioi/test/
+set ioi_host = ioi1
+set ioi_port = 7373
+set iss_port = 7383
+set multrun_output_filename = /icc/tmp/multrun_output.txt
+cd ${test_dir}
+set multrun_count = 0
+set multrun_successful_count = 0
+set multrun_failed_count = 0
+set done = 0
+set exposure_length = 10000
+set exposure_count = 9
+while ( "${done}" == "0" )
+	echo "Doing multrun of length ${exposure_length} count ${exposure_count}"
+	java SendMultrunCommand -ip ${ioi_host} -c ${ioi_port} -l ${exposure_length} -n ${exposure_count} -serverport ${iss_port} >& ${multrun_output_filename}
+	set multrun_error_number = `cat ${multrun_output_filename} | grep "error Number" | sed "s/.*error Number:\(.*\)/\1/g"`
+	echo "Multrun error number was ${multrun_error_number}."
+	if( ${multrun_error_number} == 0 ) then
+		@ multrun_successful_count ++
+	else
+		@ multrun_failed_count ++
+		cat ${multrun_output_filename}
+	endif
+	echo "MULTRUN: ${multrun_count} tests: ${multrun_successful_count} MULTRUNS succeeded: ${multrun_failed_count} MULTRUNS failed."
+	@ multrun_count ++
+end
