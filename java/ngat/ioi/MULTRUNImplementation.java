@@ -166,7 +166,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		double exposureLengthSeconds;
 		long acquireRampCommandCallTime;
 		int index;
-		char exposureCode;
 		boolean retval = false;
 		boolean fitsFilenameRename;
 		boolean done;
@@ -197,15 +196,29 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			return multRunDone;
 		if(testAbort(multRunCommand,multRunDone) == true)
 			return multRunDone;
-		if(multRunCommand.getStandard())
+		try
 		{
-			obsType = FitsHeaderDefaults.OBSTYPE_VALUE_STANDARD;
-			exposureCode = FitsFilename.EXPOSURE_CODE_STANDARD;
+			if(multRunCommand.getStandard())
+			{
+				obsType = FitsHeaderDefaults.OBSTYPE_VALUE_STANDARD;
+				if(fitsFilenameRename)
+					fitsFilename.setExposureCode(FitsFilename.EXPOSURE_CODE_STANDARD);
+			}
+			else
+			{
+				obsType = FitsHeaderDefaults.OBSTYPE_VALUE_EXPOSURE;
+				if(fitsFilenameRename)
+					fitsFilename.setExposureCode(FitsFilename.EXPOSURE_CODE_EXPOSURE);
+			}
 		}
-		else
+		catch(Exception e)
 		{
-			obsType = FitsHeaderDefaults.OBSTYPE_VALUE_EXPOSURE;
-			exposureCode = FitsFilename.EXPOSURE_CODE_EXPOSURE;
+			ioi.error(this.getClass().getName()+
+				  ":processCommand:Failed to set Exposure Code:",e);
+			multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1203);
+			multRunDone.setErrorString("processCommand:Failed to set Exposure Code:"+e);
+			multRunDone.setSuccessful(false);
+			return multRunDone;
 		}
 		// configure the array 
 		exposureLengthSeconds = ((double)(multRunCommand.getExposureTime())/1000.0);
@@ -336,8 +349,11 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				acquireRampCommandCallTime+" to the data processing list.");
 			try
 			{
+				// increment run number in Multrun
+				if(fitsFilenameRename)
+					fitsFilename.nextRunNumber();
 				dataProcessingThread.addDataForProcessing(bFS,acquireRampCommandCallTime,
-									  ioiFitsHeader,exposureCode);
+									  ioiFitsHeader,fitsFilename);
 			}
 			catch(Exception e)
 			{
@@ -369,23 +385,23 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		done = false;
 		while(done == false)
 		{
-			int listSize;
+			int dataProcessingThreadState, listSize;
 
 			if(sendACK(multRunCommand,multRunDone,rampOverheadTime) == false)
 			{
 				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+":processCommand:"+
-					"sendACK failed whilst waiting for data processing to complete:"+
-					"Reseting telescope offset.");
-				resetTelescopeOffset(multRunCommand,multRunDone);
+					"sendACK failed whilst waiting for data processing to complete.");
 				return multRunDone;
 			}
-			// get current size of list
+			// get current size of list and thread state
+			dataProcessingThreadState = dataProcessingThread.getThreadState();
 			listSize = dataProcessingThread.getListSize();
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Current data processing list size = "+listSize);
+				":processCommand:Current data processing list size = "+listSize+" thread state = "+
+				DataProcessingThread.threadStateToString(dataProcessingThreadState));
 			// we have finished if there is no more data to process.
-			// Note not really true as the last data processing item might still be being processed.
-			done = (listSize == 0);
+			done = ((listSize == 0) && 
+				(dataProcessingThreadState == DataProcessingThread.THREAD_STATE_IDLE));
 			if(done == false)
 			{
 				try

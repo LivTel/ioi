@@ -122,12 +122,18 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 * @see #idlServerPortNumber
 	 * @see #detectorTemperatureInstrumentStatus
 	 * @see #getIDLServerConfig
+	 * @see IOI#getDataProcessingThread
+	 * @see DataProcessingThread#getThreadState
+	 * @see DataProcessingThread#getCurrentAcquireRampCommandCallTime
+	 * @see DataProcessingThread#getCurrentMultrunNumber
+	 * @see DataProcessingThread#getCurrentRunNumber
 	 */
 	public COMMAND_DONE processCommand(COMMAND command)
 	{
 		GET_STATUS getStatusCommand = (GET_STATUS)command;
 		GET_STATUS_DONE getStatusDone = new GET_STATUS_DONE(command.getId());
 		ISS_TO_INST currentCommand = null;
+		DataProcessingThread dataProcessingThread = null;
 		int sidecarTemperatureProtectionThreadState;
 
 		try
@@ -189,6 +195,16 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			detectorTemperatureInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_FAIL;
 		hashTable.put(GET_STATUS_DONE.KEYWORD_DETECTOR_TEMPERATURE_INSTRUMENT_STATUS,
 			      detectorTemperatureInstrumentStatus);
+		// DataProcessingThread status
+		dataProcessingThread = ioi.getDataProcessingThread();
+		hashTable.put("DataProcessingThread.State",
+		     new String(DataProcessingThread.threadStateToString(dataProcessingThread.getThreadState())));
+		hashTable.put("DataProcessingThread.CurrentAcquireRampCommandCallTime",
+			      new Long(dataProcessingThread.getCurrentAcquireRampCommandCallTime()));
+		hashTable.put("DataProcessingThread.CurrentMultrunNumber",
+			      new Integer(dataProcessingThread.getCurrentMultrunNumber()));
+		hashTable.put("DataProcessingThread.CurrentRunNumber",
+			      new Integer(dataProcessingThread.getCurrentRunNumber()));
 	// intermediate level information - basic plus controller calls.
 		if(getStatusCommand.getLevel() >= GET_STATUS.LEVEL_INTERMEDIATE)
 		{

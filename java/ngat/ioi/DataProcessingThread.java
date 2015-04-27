@@ -25,6 +25,26 @@ public class DataProcessingThread extends Thread
 	 */
 	public final static String RCSID = new String("$Id$");
 	/**
+	 * What the running thread is doing.
+	 */
+	public final static int THREAD_STATE_UNKNOWN    = 0;
+	/**
+	 * What the running thread is doing.
+	 */
+	public final static int THREAD_STATE_STARTED    = 1;
+	/**
+	 * What the running thread is doing.
+	 */
+	public final static int THREAD_STATE_IDLE       = 2;
+	/**
+	 * What the running thread is doing.
+	 */
+	public final static int THREAD_STATE_PROCESSING = 3;
+	/**
+	 * What the running thread is doing.
+	 */
+	public final static int THREAD_STATE_STOPPED    = 4;
+	/**
 	 * A reference to the IOI class instance.
 	 */
 	protected IOI ioi = null;
@@ -40,13 +60,37 @@ public class DataProcessingThread extends Thread
 	 * Boolean to control the termination of the thread.
 	 */
 	protected boolean done = false;
+	/**
+	 * What the running thread is doing.
+	 */
+	protected int threadState = THREAD_STATE_UNKNOWN;
+	/**
+	 * The current acquireRampCommandCallTime being processed by processData.
+	 * This is set to -1 if none is being processed.
+	 * @see #processData
+	 */
+	protected long currentAcquireRampCommandCallTime = -1;
+	/**
+	 * The current Multrun Number being processed by processData.
+	 * This is set to -1 if none is being processed.
+	 * @see #processData
+	 */
+	protected int currentMultrunNumber = -1;
+	/**
+	 * The current Run Number being processed by processData.
+	 * This is set to -1 if none is being processed.
+	 * @see #processData
+	 */
+	protected int currentRunNumber = -1;
 
 	/**
 	 * Default constructor.
+	 * @see #threadState
 	 */
 	public DataProcessingThread()
 	{
 		super("DataProcessingThread");
+		threadState = THREAD_STATE_UNKNOWN;
 	}
 	
 	/**
@@ -78,17 +122,21 @@ public class DataProcessingThread extends Thread
 	 * Add a new data processing item to the list of items to be processed.
 	 * @param bFS Whether the data was acquired read up the ramp (==0) or in Fowler Sampling Mode (==1).
 	 * @param acquireRampCommandCallTime The timestamp of when AcquireRamp was called.
-	 * @param f The FITS headers items associated with this data (to be added to the FITS headers of the acquired data).
+	 * @param f The FITS headers items associated with this data 
+	 *        (to be added to the FITS headers of the acquired data).
 	 *        This item will be copied as the original may change whilst data processing on this item is underway.
-	 * @param exposureCode The exposure code to use when renaming the FITS images.
+	 * @param fitsFilename The FitsFilename instance to use when renaming the FITS images.
 	 * @exception Exception Thrown if setBFS is given an out of range parameter.
 	 * @see #dataProcessingList
 	 * @see DataProcessingItem
 	 * @see DataProcessingItem#setBFS
 	 * @see DataProcessingItem#setAcquireRampCommandCallTime
 	 * @see DataProcessingItem#setFitsHeader
+	 * @see DataProcessingItem#setFitsFilename
 	 */
-	public void addDataForProcessing(int bFS,long acquireRampCommandCallTime,FitsHeader f,char exposureCode) throws Exception
+	public void addDataForProcessing(int bFS,long acquireRampCommandCallTime,FitsHeader f,
+					 FitsFilename fitsFilename) 
+		throws Exception
 	{
 		DataProcessingItem item = null;
 
@@ -96,7 +144,14 @@ public class DataProcessingThread extends Thread
 		item.setBFS(bFS);
 		item.setAcquireRampCommandCallTime(acquireRampCommandCallTime);
 		item.setFitsHeader(f);
-		item.setExposureCode(exposureCode);
+		// Create a copy of the supplied fitsFilename instance,
+		// the original may be modified by the MULTRUN, or by a new MULTRUN starting whilst we are still
+		// processing data from this one.
+		// Note if ioi.file.fits.rename is false fitsFilename can be null
+		if(fitsFilename != null)
+			item.setFitsFilename(new FitsFilename(fitsFilename));
+		else
+			item.setFitsFilename(null);
 		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":addDataForProcessing:"+
 			"About to enter synchronised block to add item:"+item);
 		synchronized(dataProcessingList)
@@ -136,19 +191,99 @@ public class DataProcessingThread extends Thread
 	}
 
 	/**
+	 * Get the current thread state.
+	 * @return The current thread state.
+	 * @see #threadState
+	 * @see #THREAD_STATE_STARTED
+	 * @see #THREAD_STATE_IDLE
+	 * @see #THREAD_STATE_PROCESSING
+	 * @see #THREAD_STATE_STOPPED
+	 */
+	public int getThreadState()
+	{
+		return threadState;
+	}
+
+	
+	/**
+	 * Get a string decribing the specified thread state.
+	 * @param state The state to return a description string for: 
+	 * @return A string describing the thread state. One of:
+	 *        "STARTED","IDLE","PROCESSING","STOPPED","UNKNOWN".
+	 * @see #THREAD_STATE_STARTED
+	 * @see #THREAD_STATE_IDLE
+	 * @see #THREAD_STATE_PROCESSING
+	 * @see #THREAD_STATE_STOPPED
+	 */
+	public static String threadStateToString(int state)
+	{
+		switch(state)
+		{
+			case THREAD_STATE_STARTED:
+				return "STARTED";
+			case THREAD_STATE_IDLE:
+				return "IDLE";
+			case THREAD_STATE_PROCESSING:
+				return "PROCESSING";
+			case THREAD_STATE_STOPPED:
+				return "STOPPED";
+			case THREAD_STATE_UNKNOWN:
+			default:
+				return "UNKNOWN";
+		}
+	}
+
+	/**
+	 * Return the current acquireRampCommandCallTime being processed by processData.
+	 * @return The current acquireRampCommandCallTime, a long, milliseconds since the epoch.
+	 * @see #processData
+	 * @see #currentAcquireRampCommandCallTime
+	 */
+	public long getCurrentAcquireRampCommandCallTime()
+	{
+		return currentAcquireRampCommandCallTime;
+	}
+
+	/**
+	 * Return the current Multrun Number being processed by processData.
+	 * @return The current Multrun Number, an int
+	 * @see #processData
+	 * @see #currentMultrunNumber
+	 */
+	public int getCurrentMultrunNumber()
+	{
+		return currentMultrunNumber;
+	}
+
+	/**
+	 * Return the current Run Number being processed by processData.
+	 * @return The current Run Number, an int
+	 * @see #processData
+	 * @see #currentRunNumber
+	 */
+	public int getCurrentRunNumber()
+	{
+		return currentRunNumber;
+	}
+
+	/**
 	 * Main thread run method.
 	 * <ul>
+	 * <li>We set the thread state to STARTED.
 	 * <li>We check to ensure the dataProcessingList and status references were setup correctly (by init).
 	 * <li>We enter a loop until <b>done</b> is true. <b>done</b> can be set true from the <b>quit</b> method.
 	 *     <ul>
 	 *     <li>We acquire the dataProcessingList and enter a wait loop for something to be put into the list.
+	 *         The thread state is set to IDLE.
 	 *     <li>While the size of the dataProcessingList is greater than zero, we:
 	 *         <ul>
+	 *         <li>We set the thread state to PROCESSING.
 	 *         <li>Reacquire the lock on the dataProcessingList and remove the first item from it.
 	 *         <li>We call <b>processData</b> on this item. Any exceptions are caught and logged.
 	 *         </ul>
 	 *     </ul>
 	 * <li>Any exceptions in the execution of this thread are caught and logged.
+	 * <li>We set the thread state to STOPPED.
 	 * </ul>
 	 * @see #init
 	 * @see #status
@@ -156,14 +291,21 @@ public class DataProcessingThread extends Thread
 	 * @see #dataProcessingList
 	 * @see #processData
 	 * @see #quit
+	 * @see #threadState
+	 * @see #THREAD_STATE_STARTED
+	 * @see #THREAD_STATE_IDLE
+	 * @see #THREAD_STATE_PROCESSING
+	 * @see #THREAD_STATE_STOPPED
 	 */
 	public void run()
 	{
 		DataProcessingItem item = null;
 		int listSize;
 
+		threadState = THREAD_STATE_STARTED;
 		try
 		{
+			// check start state is sane
 			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":run:Started.");
 			if(dataProcessingList == null)
 			{
@@ -175,10 +317,12 @@ public class DataProcessingThread extends Thread
 				throw new Exception(this.getClass().getName()+
 						    ":run:status was not initialised.");
 			}
+			// enter main loop
 			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":run:Entering main loop.");
 			done = false;
 			while(done == false)
 			{
+				// enter synchronised block whilst waiting for an item to appear in the list
 				ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					":run:About to enter synchronised block to check list size.");
 				synchronized(dataProcessingList)
@@ -186,13 +330,20 @@ public class DataProcessingThread extends Thread
 					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 						":run:In synchronised block to check list size.");
 					while((done == false)&&(dataProcessingList.size() == 0))
+					{
+						threadState = THREAD_STATE_IDLE;
 						dataProcessingList.wait(10000);
+					}
 					listSize = dataProcessingList.size();
 					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 						":run:In synchronised block:list size = "+listSize);
 				}
+				// loop whilst there are items in the list
 				while(listSize > 0)
 				{
+					// update thread state. Enter a synchronised block to remove the first
+					// item from the list.
+					threadState = THREAD_STATE_PROCESSING;
 					ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 						":run:About to enter synchronised block remove first item.");
 					synchronized(dataProcessingList)
@@ -201,8 +352,10 @@ public class DataProcessingThread extends Thread
 						dataProcessingList.remove(0);
 						listSize = dataProcessingList.size();
 						ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-							":run:In synchronised block:removed first item:list size now = "+listSize);
+							":run:In synchronised block:removed first item:"+
+							"list size now = "+listSize);
 					}
+					// Process the item. Catch exceptions and log.
 					try
 					{
 						ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
@@ -222,12 +375,16 @@ public class DataProcessingThread extends Thread
 		{
 			ioi.error(this.getClass().getName()+":run:Threw Exception:",e);
 		}
+		threadState = THREAD_STATE_STOPPED;
 	}
 
 	/**
 	 * Process the data.
 	 * <ul>
-	 * <li>We call <b>findRampData</b> to find where the IDL Socket Server has created a new directory with the acquired data.
+	 * <li>We update the thread status: currentAcquireRampCommandCallTime, currentMultrunNumber and
+	 *     currentRunNumber are updated based on the contents of the DataProcessingItem.
+	 * <li>We call <b>findRampData</b> to find where the IDL Socket Server has created a new directory with the 
+	 *     acquired data.
 	 * <li>We call <b>findFITSFilesInDirectory</b> to locate all the generated FITS files from the ramp.
 	 * <li>We call <b>addFitsHeadersToFitsImages</b> to add the previously retrieved ISS/BSS/IO:I headers
 	 *     to the IDL Socket Server generated FITS images.
@@ -236,6 +393,8 @@ public class DataProcessingThread extends Thread
 	 * <li>We call <b>renameFitsFiles</b> which, depending on a config option, 
 	 *     renames the IDL Socket Server generated FITS images to LT standard filenames.
 	 * <li>We call <b>deleteIDLDirectory</b> which deletes the IDL directory and any remaining data within it.
+	 * <li>We reset the thread status: currentAcquireRampCommandCallTime, currentMultrunNumber and
+	 *     currentRunNumber are reset to -1.
 	 * </ul>
 	 * @param item The data to be processed.
 	 * @exception Throwen if an error occurs.
@@ -245,6 +404,9 @@ public class DataProcessingThread extends Thread
 	 * @see #flipFitsFiles
 	 * @see #renameFitsFiles
 	 * @see #deleteIDLDirectory
+	 * @see #currentAcquireRampCommandCallTime
+	 * @see #currentMultrunNumber
+	 * @see #currentRunNumber
 	 */
 	protected void processData(DataProcessingItem item) throws Exception
 	{
@@ -253,36 +415,51 @@ public class DataProcessingThread extends Thread
 		String directory = null;
 		int bFS;
 		long acquireRampCommandCallTime;
-		char exposureCode;
+		FitsFilename fitsFilename = null;
 
-		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":processData:Starting processing item:"+item);
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":processData:Starting processing item:"+item);
 		acquireRampCommandCallTime = item.getAcquireRampCommandCallTime();
 		bFS = item.getBFS();
 		fitsHeader = item.getFitsHeader();
-		exposureCode = item.getExposureCode();
+		fitsFilename = item.getFitsFilename();
+		// update thread status
+		currentAcquireRampCommandCallTime = acquireRampCommandCallTime;
+		if(fitsFilename != null)
+		{
+			currentMultrunNumber = fitsFilename.getMultRunNumber();
+			currentRunNumber = fitsFilename.getRunNumber();
+		}
 		// findRampData
-		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":processData:Finding ramp data for exposure.");
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":processData:Finding ramp data for exposure.");
 		directory = findRampData(bFS,acquireRampCommandCallTime);
 		// findFITSFilesInDirectory
-		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":processData:Listing FITS images in Ramp Data directory "+
-			directory+".");
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":processData:Listing FITS images in Ramp Data directory "+directory+".");
 		fitsFileList = findFITSFilesInDirectory(bFS,directory);
 		// addFitsHeadersToFitsImages
-		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":processData:Adding FITS headers to "+fitsFileList.size()+
-			" FITS images.");
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":processData:Adding FITS headers to "+fitsFileList.size()+" FITS images.");
 		addFitsHeadersToFitsImages(fitsHeader,fitsFileList);
 		// flipFitsFiles
-		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":processData:Flip image data in FITS images (if enabled).");
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":processData:Flip image data in FITS images (if enabled).");
 		flipFitsFiles(fitsFileList);
 		// renameFitsFiles
 		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 			":processData:Rename generated FITS images to LT spec (if enabled).");
-		renameFitsFiles(fitsFileList,exposureCode);
+		renameFitsFiles(fitsFileList,fitsFilename);
 		// deleteDirectory
 		// We now want to delete the original IDL generated directory, to improve the 
 		// speed of findRampData
 		deleteIDLDirectory(directory);
-		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+":processData:Finished processing item:"+item);
+		ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			":processData:Finished processing item:"+item);
+		// update thread status
+		currentAcquireRampCommandCallTime = -1;
+		currentMultrunNumber = -1;
+		currentRunNumber = -1;
 	}
 
 	/**
@@ -332,7 +509,8 @@ public class DataProcessingThread extends Thread
 		acquireRampCommandCallTime -= (acquireRampCommandCallTime%1000);
 		// get root directory
 		rootDirectoryString = status.getProperty("ioi.data.directory.root");
-		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+":findRampData:root directory:"+rootDirectoryString+".");
+		ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+":findRampData:root directory:"+
+			rootDirectoryString+".");
 		// get the current configuration of the array
 		if(bFS == 0)
 			fsModeDirectoryString = status.getProperty("ioi.data.directory.up_the_ramp");
@@ -633,8 +811,7 @@ public class DataProcessingThread extends Thread
 	 * @param fitsImageList A List, containing File object instances, where each item represents a FITS image
 	 *        within the IDL socket server directory structure. The contents of this list are changed
 	 *        to the renamed LT style FITS filenames.
-	 * @param exposureCode A character describing which type of exposure we are doing, 
-	 *        ARC|BIAS|DARK|EXPOSURE|SKY_FLAT|ACQUIRE
+	 * @param fitsFilename The FitsFilename instance to use when generating the LT FITS filenames.
 	 * @exception Exception Thrown if the rename operation fails.
 	 * @see IOI#getFitsFilename
 	 * @see ngat.fits.FitsFilename#EXPOSURE_CODE_ARC
@@ -644,11 +821,10 @@ public class DataProcessingThread extends Thread
 	 * @see ngat.fits.FitsFilename#EXPOSURE_CODE_SKY_FLAT
 	 * @see ngat.fits.FitsFilename#EXPOSURE_CODE_ACQUIRE
 	 */
-	public void renameFitsFiles(List<File> fitsImageList,char exposureCode) throws Exception
+	public void renameFitsFiles(List<File> fitsImageList,FitsFilename fitsFilename) throws Exception
 	{
 		File fitsFile = null;
 		File newFitsFile = null;
-		FitsFilename fitsFilename = null;
 		String newFilename = null;
 		boolean fitsFilenameRename,retval;
 
@@ -657,12 +833,6 @@ public class DataProcessingThread extends Thread
 		fitsFilenameRename = status.getPropertyBoolean("ioi.file.fits.rename");
 		if(fitsFilenameRename)
 		{
-			// get the FITS filename instance
-			fitsFilename = ioi.getFitsFilename();
-			// New Run in Multrun
-			fitsFilename.nextRunNumber();
-			// set exposure code appropriately
-			fitsFilename.setExposureCode(exposureCode);
 			for(int fitsImageIndex=0;fitsImageIndex < fitsImageList.size(); fitsImageIndex++)
 			{
 				fitsFile = (File)(fitsImageList.get(fitsImageIndex));
@@ -777,9 +947,9 @@ public class DataProcessingThread extends Thread
 	 * <li>fitsHeader A copy of the FITS headers stored in the main IO:I program when the AcquireRamp was called.
 	 *     The main copy will be changed before the next ACQUIRERAMP in the MULTRUN is started, so a copy is needed
 	 *     to stop the FITS headers being modified for the next exposure.
-	 * <li>bFS An integer (but sort of a boolean). bFS ==1 means the data was acquired using Fowler sampling mode, bFS == 0 means the
-	 *     data was acquired using read up the ramp mode.
-	 * <li>exposureCode The exposure code to use when renaming the FITS filename.
+	 * <li>bFS An integer (but sort of a boolean). bFS ==1 means the data was acquired using Fowler sampling mode, 
+	 *     bFS == 0 means the data was acquired using read up the ramp mode.
+	 * <li>fitsFilename The FitsFilename instance to use when renaming the FITS filename.
 	 * </ul>
 	 */
 	public class DataProcessingItem
@@ -799,9 +969,9 @@ public class DataProcessingThread extends Thread
 		 */
 		protected int bFS = -1;
 		/**
-		 * The exposure code to use when renaming the FITS filename.
+		 * The FitsFilename instance to use when renaming the FITS filename.
 		 */
-		protected char exposureCode;
+		protected FitsFilename fitsFilename;
 
 		/**
 		 * Defaulot constructor.
@@ -893,23 +1063,23 @@ public class DataProcessingThread extends Thread
 		}
 
 		/**
-		 * Set the exposure code to be used when renaming images.
-		 * @param c The exposure code.
-		 * @see #exposureCode
+		 * Set the FitsFilename instance to be used when renaming images.
+		 * @param o The instance.
+		 * @see #fitsFilename
 		 */
-		public void setExposureCode(char c)
+		public void setFitsFilename(FitsFilename o)
 		{
-			exposureCode = c;
+			fitsFilename = o;
 		}
 
 		/**
-		 * Get the exposure code to be used when renaming images.
-		 * @return The exposure code.
-		 * @see #exposureCode
+		 * Get the FitsFilename instance to be used when renaming images.
+		 * @return The FitsFilename instance.
+		 * @see #fitsFilename
 		 */
-		public char getExposureCode()
+		public FitsFilename getFitsFilename()
 		{
-			return exposureCode;
+			return fitsFilename;
 		}
 
 		/**
@@ -917,12 +1087,13 @@ public class DataProcessingThread extends Thread
 		 * @see #acquireRampCommandCallTime
 		 * @see #bFS
 		 * @see #fitsHeader
-		 * @see #exposureCode
+		 * @see #fitsFilename
 		 */
 		public String toString()
 		{
-			return new String(this.getClass().getName()+":Acquire Ramp Call Time:"+acquireRampCommandCallTime+":bFS:"+bFS+
-					  ":FitsHeader:"+fitsHeader+":exposure code:"+exposureCode);
+			return new String(this.getClass().getName()+":Acquire Ramp Call Time:"+
+					  acquireRampCommandCallTime+":bFS:"+bFS+
+					  ":FitsHeader:"+fitsHeader+":fits filename:"+fitsFilename);
 		}
 	}
 
