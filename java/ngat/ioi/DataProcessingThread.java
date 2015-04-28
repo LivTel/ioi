@@ -16,7 +16,7 @@ import ngat.util.logging.*;
  * items. 
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 50 $
+ * @version $Revision$
  */
 public class DataProcessingThread extends Thread
 {

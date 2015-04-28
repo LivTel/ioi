@@ -12,7 +12,8 @@ SRCS 		= $(MAIN_SRCS) $(IMPL_SRCS)
 MAIN_SRCS 	= IOIConstants.java \
 		IOI.java IOIStatus.java IOITCPClientConnectionThread.java \
 		IOITCPServerConnectionThread.java IOITCPServer.java IOIREBOOTQuitThread.java \
-		SidecarTemperatureProtectionThread.java DataProcessingThread.java
+		SidecarTemperatureProtectionThread.java DataProcessingThread.java \
+		OffsetTelescopeAndGetFitsHeadersThread.java
 IMPL_SRCS = $(BASE_IMPL_SRCS) $(CALIBRATE_IMPL_SRCS) $(EXPOSE_IMPL_SRCS) $(INTERRUPT_IMPL_SRCS) $(SETUP_IMPL_SRCS)
 BASE_IMPL_SRCS		= CommandImplementation.java JMSCommandImplementation.java UnknownCommandImplementation.java \
 			HardwareImplementation.java FITSImplementation.java

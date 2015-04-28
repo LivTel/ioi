@@ -10,7 +10,6 @@ import java.util.*;
 import ngat.ioi.command.*;
 import ngat.fits.*;
 import ngat.message.base.*;
-import ngat.message.base.*;
 import ngat.message.ISS_INST.*;
 import ngat.net.*;
 import ngat.supircam.temperaturecontroller.*;
