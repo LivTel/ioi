@@ -20,7 +20,7 @@ import ngat.util.logging.*;
  * from the RCS, so that they contain the latest offset RA/Dec.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 50 $
+ * @version $Revision$
  */
 public class OffsetTelescopeAndGetFitsHeadersThread extends Thread
 {
@@ -239,8 +239,6 @@ public class OffsetTelescopeAndGetFitsHeadersThread extends Thread
 	 * </ul>
 	 * @see #init
 	 * @see #status
-	 * @see #done
-	 * @see #quit
 	 * @see #offsetTelescope
 	 * @see #threadState
 	 * @see #ioiFitsHeader

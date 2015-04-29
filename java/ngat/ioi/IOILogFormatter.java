@@ -11,7 +11,7 @@ import ngat.util.logging.*;
  * This is a custom log formatter for IO:I, that attempts to put the calling thread into the log message. This
  * should make it easier to trace the asynchronous behavior of IO:I.
  * @author Chris Mottram
- * @version $Revision: 50 $
+ * @version $Revision$
  */
 public class IOILogFormatter extends LogFormatter 
 {

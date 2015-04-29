@@ -136,7 +136,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * The resultant filenames or the relevant error code is put into the an object of class MULTRUN_DONE and
 	 * returned. During execution of these operations the abort flag is tested to see if we need to
 	 * stop the implementation of this command.
-	 * @see #offsetTelescope
 	 * @see #resetTelescopeOffset
 	 * @see #getBFS
 	 * @see #setFowlerSamplingParameters
