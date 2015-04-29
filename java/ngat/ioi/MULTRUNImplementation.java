@@ -91,6 +91,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * <li>We initialise exposure status variables (<b>setExposureCount</b>/<b>setExposureNumber</b>/
 	 *     <b>setExposureLength</b>).
 	 * <li>It moves the fold mirror to the correct location (<b>moveFold</b>).
+	 * <li>We setup the OBSTYPE and configure the fitsFilename instance based on whether we are doing
+	 *     an exposure or standard.
 	 * <li>We call <b>getBFS</b>, which extracts the bFS variable from the reply to a GetConfig command,
 	 *     which tells us whether we have previously configured the array to acquire ramps using Fowler Sampling
 	 *     or Read up the Ramp.
@@ -100,10 +102,20 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 *     IDL Socket Server to configure read up the ramp mode.
 	 * <li>For each exposure we do the following:
 	 *	<ul>
-	 *      <li>We issue a RA/DEC offset to the ISS, for sky dithering (<b>offsetTelescope</b>).
-	 * 	<li>It generates some FITS headers from the setup, ISS and BSS, using 
-	 *          <b>clearFitsHeaders</b>,<b>setFitsHeaders</b>,<b>getFitsHeadersFromISS</b>,
-	 *          <b>getFitsHeadersFromBSS</b>
+	 *      <li>We call <b>clearFitsHeaders</b> to reset the FITS headers information.
+	 *      <li>We start an instance of OffsetTelescopeAndGetFitsHeadersThread. This thread does the 
+	 *          following tasks asynchonously whilst the MULTRUN thread continues:
+	 *          <ul>
+	 *          <li>Issues a RA/DEC offset to the ISS, for sky dithering (<b>offsetTelescope</b>).
+	 *          <li>Calls <b>getFitsHeadersFromISS</b> to get FITS headers (incorporating
+	 *              the latest  offset) from the ISS.
+	 *          <li>Adds the returned FITS headers to ioiFitsHeader.
+	 *          </ul>
+	 *          <b>offsetTelescope</b> takes around 7 seconds, <b>getFitsHeadersFromISS</b> takes around 5 seconds,
+	 *          so doing these tasks asynchronously reduces overheads by around a third.
+	 * 	<li>It generates some FITS headers from the setup, and BSS, using 
+	 *          <b>setFitsHeaders</b> and <b>getFitsHeadersFromBSS</b>. 
+	 *          Some other are addded from the OffsetTelescopeAndGetFitsHeadersThread asynchronously.
 	 *      <li>We take an exposure start time timestamp, save it in the status object
 	 *          (<b>setExposureStartTime</b>), and set the status's current mode (<b>setCurrentMode</b>) 
 	 *           to exposure.
@@ -150,6 +162,11 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_EXPOSING
 	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#MODE_READING_OUT
 	 * @see DataProcessingThread#addDataForProcessing
+	 * @see OffsetTelescopeAndGetFitsHeadersThread
+	 * @see OffsetTelescopeAndGetFitsHeadersThread#setIOI
+	 * @see OffsetTelescopeAndGetFitsHeadersThread#init
+	 * @see OffsetTelescopeAndGetFitsHeadersThread#setServerConnectionThread
+	 * @see OffsetTelescopeAndGetFitsHeadersThread#setOffsetIndex
 	 */
 	public COMMAND_DONE processCommand(COMMAND command)
 	{
@@ -159,6 +176,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		FitsFilename fitsFilename = null;
 		Vector<File> reduceFilenameList = null;
 		DataProcessingThread dataProcessingThread = null;
+		OffsetTelescopeAndGetFitsHeadersThread offsetTelescopeAndGetFitsHeadersThread = null;
 		File fitsFile = null;
 		String obsType = null;
 		String filename = null;
@@ -255,21 +273,21 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			}
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Starting exposure "+index+" of length "+exposureLengthSeconds+"s.");
-			// RA/Dec Offset for sky dithering.
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				":processCommand:Offseting telescope.");
-			if(offsetTelescope(multRunCommand,multRunDone,index) == false)
-			{
-				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-					":processCommand:offsetTelescope failed for index "+index+
-					" : Reseting telescope offset.");
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				return multRunDone;
-			}
+				":processCommand:Clear FITS headers.");
+			clearFitsHeaders();
+			// Start telescope offset thread for sky dithering.
+			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				":processCommand:Starting telescope Offset thread.");
+			offsetTelescopeAndGetFitsHeadersThread = new OffsetTelescopeAndGetFitsHeadersThread();
+			offsetTelescopeAndGetFitsHeadersThread.setIOI(ioi);
+			offsetTelescopeAndGetFitsHeadersThread.init();
+			offsetTelescopeAndGetFitsHeadersThread.setServerConnectionThread(serverConnectionThread);
+			offsetTelescopeAndGetFitsHeadersThread.setOffsetIndex(index);
+			offsetTelescopeAndGetFitsHeadersThread.start();
 			// get fits headers
 			ioi.log(Logging.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 				":processCommand:Retrieving FITS headers.");
-			clearFitsHeaders();
 			if(setFitsHeaders(multRunCommand,multRunDone,obsType,
 					  multRunCommand.getExposureTime(),
 					  multRunCommand.getNumberExposures()) == false)
@@ -280,14 +298,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
-			if(getFitsHeadersFromISS(multRunCommand,multRunDone) == false)
-			{
-				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
-					":processCommand:getFitsHeadersFromISS failed for index "+index+
-					" : Reseting telescope offset.");
-				resetTelescopeOffset(multRunCommand,multRunDone);
-				return multRunDone;
-			}
+			// getFitsHeadersFromISS is called from the OffsetTelescopeAndGetFitsHeadersThread
+			// after the telescope offset has been completed, so the RA/Dec are correct
 			if(testAbort(multRunCommand,multRunDone) == true)
 			{
 				ioi.log(Logging.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
@@ -340,6 +352,29 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				resetTelescopeOffset(multRunCommand,multRunDone);
 				return multRunDone;
 			}
+			// check whether the offsetTelescopeAndGetFitsHeadersThread worked
+			if(offsetTelescopeAndGetFitsHeadersThread.getThreadState() != 
+			   OffsetTelescopeAndGetFitsHeadersThread.THREAD_STATE_FINISHED)
+			{
+				int errorNum = offsetTelescopeAndGetFitsHeadersThread.getErrorNum();
+				String errorString = offsetTelescopeAndGetFitsHeadersThread.getErrorString();
+
+				status.setCurrentMode(GET_STATUS_DONE.MODE_IDLE);
+				resetTelescopeOffset(multRunCommand,multRunDone);
+				ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
+				  ":processCommand:OffsetTelescopeAndGetFitsHeadersThread failed with error number "+
+					errorNum+" and error string "+errorString+".");
+				ioi.error(this.getClass().getName()+
+				   ":processCommand:OffsetTelescopeAndGetFitsHeadersThread failed with error number "+
+					  errorNum+" and error string "+errorString+".");
+				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1201);
+				multRunDone.setErrorString(this.getClass().getName()+
+				   ":processCommand:OffsetTelescopeAndGetFitsHeadersThread failed with error number "+
+							   errorNum+" and error string "+errorString+".");
+				multRunDone.setSuccessful(false);
+				return multRunDone;
+			}
+			// diddly should we check getErrorNum independently of getThreadState?
 			// We are not really reading out, but managing the acquired data
 			status.setCurrentMode(GET_STATUS_DONE.MODE_READING_OUT);
 			// Add this ramp to the data processing threads list of data to process
@@ -685,104 +720,6 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 						   ":setReadUpTheRampParameters:SetRampParam failed:"+e.toString());
 			multRunDone.setSuccessful(false);
 			return false;
-		}
-		return true;
-	}
-
-	/**
-	 * Method to offset the telescope by a small amount in RA/Dec, to dither the sky.
-	 * @param multRunCommand The command requiring this configuration to be done.
-	 * @param multRunDone The done message, filled in if with a suitable error if the method failed.
-	 * @param index The index in the list of exposures to do in the Multrun, from 0 to the number
-	 *        of exposures specified by the MULTRUN. This number is used to calculate which
-	 *        RA/Dec offset to use.
-	 * @return The method returns true on success and false on failure.	 
-	 * @see ngat.message.ISS_INST.OFFSET_RA_DEC
-	 */
-	protected boolean offsetTelescope(MULTRUN multRunCommand,MULTRUN_DONE multRunDone,int index) 
-	{
-		OFFSET_RA_DEC offsetRaDecCommand = null;
-		INST_TO_ISS_DONE instToISSDone = null;
-		int raDecOffsetCount,raDecOffsetIndex,offsetSleepTime;
-		float raOffset,decOffset;
-		boolean doRADecOffset,waitForOffsetToComplete;
-
-	 // get configuration
-		ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
-			":offsetTelescope:Starting, retrieveing config.");
-		try
-		{
-			doRADecOffset = status.getPropertyBoolean("ioi.multrun.offset.enable");
-			waitForOffsetToComplete = status.getPropertyBoolean("ioi.multrun.offset.wait_for_complete");
-			offsetSleepTime =  status.getPropertyInteger("ioi.multrun.offset.wait_sleep_time");
-			raDecOffsetCount = status.getPropertyInteger("ioi.multrun.offset.count");
-			raDecOffsetIndex = index % raDecOffsetCount;
-			raOffset = status.getPropertyFloat("ioi.multrun.offset."+raDecOffsetIndex+".ra");
-			decOffset = status.getPropertyFloat("ioi.multrun.offset."+raDecOffsetIndex+".dec");
-		}
-		catch(Exception e)
-		{
-			ioi.error(this.getClass().getName()+
-				  ":offsetTelescope:"+multRunCommand+":"+e.toString());
-			multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1210);
-			multRunDone.setErrorString(e.toString());
-			multRunDone.setSuccessful(false);
-			return false;
-		}
-		if(doRADecOffset)
-		{
-			ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
-				":offsetTelescope:We are going to physically move the telescope ("+
-				raOffset+","+decOffset+").");
-			// tell telescope of offset RA and DEC
-			offsetRaDecCommand = new OFFSET_RA_DEC(multRunCommand.getId());
-			offsetRaDecCommand.setRaOffset(raOffset);
-			offsetRaDecCommand.setDecOffset(decOffset);
-			instToISSDone = ioi.sendISSCommand(offsetRaDecCommand,serverConnectionThread,true,
-							   waitForOffsetToComplete);
-			// if we are waiting for the offset to complete, and it returns an error, return an error.
-			if(waitForOffsetToComplete && (instToISSDone.getSuccessful() == false))
-			{
-				String errorString = null;
-				
-				errorString = new String("Offset Ra Dec failed:ra = "+raOffset+
-							 ", dec = "+decOffset+":"+instToISSDone.getErrorString());
-				ioi.error(errorString);
-				multRunDone.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+1211);
-				multRunDone.setErrorString(this.getClass().getName()+":offsetTelescope:"+errorString);
-				multRunDone.setSuccessful(false);
-				return false;
-			}
-			// if we have not waited for the offset to complete, and we are supposed to be waiting a
-			// configured time for the offset to have been done, wait a bit.
-			if(!waitForOffsetToComplete)
-			{
-				ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
-					":offsetTelescope:We have sent the telescope offset, "+
-					"but have NOT waited for the DONE.");
-				if(offsetSleepTime > 0)
-				{
-					ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+
-						":offsetTelescope:We have sent the telescope offset, "+
-						"but have NOT waited for the DONE, so are waiting here for "+
-						offsetSleepTime+" ms.");
-					try
-					{
-						Thread.sleep(offsetSleepTime);
-					}
-					catch(InterruptedException e)
-					{
-						ioi.error(this.getClass().getName()+
-							  ":offsetTelescope:Offset sleep time was interrupted.",e);
-					}
-				}
-			}
-		}// end if
-		else
-		{
-			ioi.log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
-				":offsetTelescope:Offsets NOT enabled:"+
-				"We are NOT going to physically move the telescope ("+raOffset+","+decOffset+").");
 		}
 		return true;
 	}

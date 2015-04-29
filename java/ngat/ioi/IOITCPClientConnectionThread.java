@@ -48,6 +48,7 @@ public class IOITCPClientConnectionThread extends TCPClientConnectionThreadMA
 	{
 		super(address,portNumber,c);
 		commandThread = ct;
+		setName(c.getClass().getName());
 	}
 
 	/**

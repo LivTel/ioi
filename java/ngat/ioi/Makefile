@@ -11,7 +11,7 @@ SCRIPT_BINDIR 	= $(IOI_BIN_HOME)/java
 SRCS 		= $(MAIN_SRCS) $(IMPL_SRCS)
 MAIN_SRCS 	= IOIConstants.java \
 		IOI.java IOIStatus.java IOITCPClientConnectionThread.java \
-		IOITCPServerConnectionThread.java IOITCPServer.java IOIREBOOTQuitThread.java \
+		IOITCPServerConnectionThread.java IOITCPServer.java IOILogFormatter.java IOIREBOOTQuitThread.java \
 		SidecarTemperatureProtectionThread.java DataProcessingThread.java \
 		OffsetTelescopeAndGetFitsHeadersThread.java
 IMPL_SRCS = $(BASE_IMPL_SRCS) $(CALIBRATE_IMPL_SRCS) $(EXPOSE_IMPL_SRCS) $(INTERRUPT_IMPL_SRCS) $(SETUP_IMPL_SRCS)

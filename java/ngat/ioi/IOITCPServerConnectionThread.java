@@ -167,6 +167,8 @@ public class IOITCPServerConnectionThread extends TCPServerConnectionThread
 			this.setPriority(ioi.getStatus().getThreadPriorityNormal());
 	// get the implementation - this never returns null.
 		commandImplementation = ioi.getImplementation(command.getClass().getName());
+		//setName(this.getClass().getName()+" implementing "+command.getClass().getName());
+		setName(commandImplementation.getClass().getName());
 	// initialises the command implementations response
 		((CommandImplementation)commandImplementation).setIOI(ioi);
 		((CommandImplementation)commandImplementation).setServerConnectionThread(this);
