@@ -17,7 +17,7 @@ import ngat.util.logging.*;
  * against the broker, it will dispatch replies to the correct(!) command. This allows one JVM
  * to use one TelnetConnection for comms to the IDL Socket Server :- commands like STOPACQUISITION and PING
  * only work when they are sent on the same telnet conenction as the ACQUIRERAMP command, as the IDL
- * socket server will only process one conenction at a time.
+ * socket server will only process one connection at a time.
  * @author Chris Mottram
  * @version $Revision$
  */
@@ -95,6 +95,7 @@ public class CommandReplyBroker implements Runnable
 		if(!isRunning)
 		{
 			t = new Thread(brokerInstance);
+			t.setName("CommandReplyBroker");
 			t.start();
 			brokerInstance.logger.log(Logging.VERBOSITY_VERBOSE,
 			      "ngat.ioi.command.CommandReplyBroker:getInstance:Started CommandReplyBroker thread.");
