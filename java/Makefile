@@ -37,18 +37,6 @@ $(JAVADOCS): $(JAVASRCS)
 	$(JAVADOC) -sourcepath $(LT_SRC_HOME):$(IOI_SRC_HOME)/java -d $(DOCSDIR) $(DOCFLAGS) \
 		-link http://java.sun.com/j2se/1.4.2/docs/api/ $(JAVAPKGS)
 
-checkin:
-	@for i in $(DIRS); \
-	do \
-		(echo checkin in $$i...; cd $$i; $(MAKE) checkin; $(CI) $(CI_OPTIONS) Makefile ); \
-	done;
-
-checkout:
-	@for i in $(DIRS); \
-	do \
-		(echo checkout in $$i...; cd $$i; $(CO) $(CO_OPTIONS) Makefile ; $(MAKE) checkout  ); \
-	done;
-
 depend:
 	echo no depend in ngat directory.
 
@@ -69,7 +57,7 @@ tidy:
 		(echo tidy in $$i...; cd $$i; $(MAKE) tidy); \
 	done;
 
-backup: checkin
+backup: 
 
 #
 # $Log$

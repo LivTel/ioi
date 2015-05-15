@@ -23,20 +23,6 @@ $(BINDIR)/%.class:%.java
 	$(JAVAC) -Xlint -sourcepath .:$(IOI_SRC_HOME)/java \
 		-classpath $(IOI_BIN_HOME)/java:$(CLASSPATH) $(JAVAC_OPTIONS) -d $(IOI_BIN_HOME)/java $<
 
-checkout:
-	$(CO) $(CO_OPTIONS) $(SRCS)
-	@for i in $(DIRS); \
-	do \
-		(echo checkout in $$i...; cd $$i; $(CO) $(CO_OPTIONS) Makefile; $(MAKE) checkout); \
-	done;
-
-checkin:
-	-$(CI) $(CI_OPTIONS) $(SRCS)
-	-@for i in $(DIRS); \
-	do \
-		(echo checkin in $$i...; cd $$i; $(MAKE) checkin; $(CI) $(CI_OPTIONS) Makefile); \
-	done;
-
 clean: tidy
 	-$(RM) $(RM_OPTIONS) $(OBJS)
 	@for i in $(DIRS); \
