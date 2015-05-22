@@ -33,6 +33,15 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 */
 	public final static String KEYWORD_TEMPERATURE_CONTROLLER_COMMS_STATUS = "Instrument.Status.Temperature.Controller.Comms";
 	/**
+	 * The temperature input connected to the array temperature sensor.
+	 */
+	public final static int TEMPERATURE_INDEX_ARRAY = 0;
+	/**
+	 * The temperature input connected to the sidecar temperature sensor.
+	 */
+	public final static int TEMPERATURE_INDEX_SIDECAR = 1;
+
+	/**
 	 * This hashtable is created in processCommand, and filled with status data,
 	 * and is returned in the GET_STATUS_DONE object.
 	 * Generic:<String, Object>
@@ -409,7 +418,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		}
 		// set data in Hashtable
 		// Copy the array temperature to "Temperature", this used by the opsgui amongst others
-		hashTable.put("Temperature",new Double(ccdTemperature[0]));
+		hashTable.put("Temperature",new Double(ccdTemperature[TEMPERATURE_INDEX_ARRAY]));
 		hashTable.put("Heater PCent",new Double(heaterOutput));
 		hashTable.put("Heater Status",new Integer(heaterStatus));
 		hashTable.put("Heater Status String",heaterStatusString);
@@ -453,17 +462,18 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		// and the sidecar temperature detection thread has not already set the status to OK/FAIL.
 		if((currentTemperature.length > 0)&&(detectorTemperatureInstrumentStatus.equals(GET_STATUS_DONE.VALUE_STATUS_UNKNOWN)))
 			detectorTemperatureInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_OK;
-		for(int i = 0; i < currentTemperature.length; i++)
+		if(currentTemperature.length > 0)
 		{
-			if((currentTemperature[i] > warmWarnTemperature)&&
+			// test the array temperature only
+			if((currentTemperature[TEMPERATURE_INDEX_ARRAY] > warmWarnTemperature)&&
 			   (detectorTemperatureInstrumentStatus == GET_STATUS_DONE.VALUE_STATUS_OK))
 				detectorTemperatureInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_WARN;
-			else if((currentTemperature[i] < coldWarnTemperature)&&
+			if((currentTemperature[TEMPERATURE_INDEX_ARRAY] < coldWarnTemperature)&&
 				(detectorTemperatureInstrumentStatus == GET_STATUS_DONE.VALUE_STATUS_OK))
 				detectorTemperatureInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_WARN;
-			else if(currentTemperature[i] > warmFailTemperature)
+			if(currentTemperature[TEMPERATURE_INDEX_ARRAY] > warmFailTemperature)
 				detectorTemperatureInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_FAIL;
-			else if(currentTemperature[i] < coldFailTemperature)
+			if(currentTemperature[TEMPERATURE_INDEX_ARRAY] < coldFailTemperature)
 				detectorTemperatureInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_FAIL;
 		}
 		// set hashtable entry
