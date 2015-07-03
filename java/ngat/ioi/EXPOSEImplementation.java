@@ -141,7 +141,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		{
 			ioi.error(this.getClass().getName()+":sendACK:sendAcknowledge failed:",e);
 			done.setErrorNum(IOIConstants.IOI_ERROR_CODE_BASE+601);
-			done.setErrorString("sendMultrunACK:sendAcknowledge failed:"+e.toString());
+			done.setErrorString("sendACK:sendAcknowledge failed:"+e.toString());
 			done.setSuccessful(false);
 			return false;
 		}

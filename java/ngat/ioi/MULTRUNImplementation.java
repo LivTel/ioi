@@ -391,7 +391,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			catch(Exception e)
 			{
 				ioi.error(this.getClass().getName()+
-					  ":processCommand:Added data for processing failed:",e);
+					  ":processCommand:Incrementing FITS filename run number failed:",e);
 			}
 			// increment exposure number
 			status.setExposureNumber(index+1);

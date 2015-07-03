@@ -368,7 +368,7 @@ public class DataProcessingThread extends Thread
 							  " threw Exception:",e);
 					}
 				}// dataProcessingList.size() > 0
-			}// end while (done =- false)
+			}// end while (done == false)
 			ioi.log(Logging.VERBOSITY_TERSE,this.getClass().getName()+":run:Finished.");
 		}
 		catch(Exception e)
@@ -1017,7 +1017,7 @@ public class DataProcessingThread extends Thread
 			// we need to copy this instance of the fitsHeader, and the List element contained within it,
 			// as the same instance has it's contents (list) cleared and recreated for each exposure
 			// in a Multrun. Therefore some level of clone is needed. 
-			// It looks like each element in the list (FitsHeaderCardImage instance) ir probably
+			// It looks like each element in the list (FitsHeaderCardImage instance) is probably
 			// recreated when the headers are generated for each MULTRUN, but it is difficult to be sure,
 			// so the safest option may be to clone those as well.
 			fitsHeader = f.copy();
