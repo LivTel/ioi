@@ -294,6 +294,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		Enumeration keywords = null;
 		Date cachedGetConfigCommandTimestamp = null;
 		String heaterStatusString = null;
+		String tempControlDeviceType = null;
 		double ccdTemperature[] = {0.0,0.0};
 		int heaterStatus,loop,tempControlLoopCount;
 		double heaterOutput,rate;
@@ -342,6 +343,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		try
 		{
 			tempControlEnable = status.getPropertyBoolean("ioi.temp_control.config.enable");
+			tempControlDeviceType = status.getProperty("ioi.temp_control.config.device.type");
 		}
 		catch(Exception e)
 		{
@@ -362,23 +364,28 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 					ccdTemperature[i] = tempControl.temperatureGet(tempInput);
 					hashTable.put("Temperature."+i,new Double(ccdTemperature[i]));
 				}
-				// get current ramp rate and whether ramp rate is turned on for each temperature loop
-				tempControlLoopCount = status.getPropertyInteger("ioi.temp_control.config.loop_count");
-				if(tempControlLoopCount > IOI.MAX_LOOP_COUNT)
+				// Only the Lakeshore has a control loop, the Arduino monitors temperature only.
+				if(tempControlDeviceType.equals("LAKESHORE_331"))
 				{
-					ioi.error(this.getClass().getName()+":getIntermediateStatus:"+
-						  "retrieved temperature control loop count "+
-						  tempControlLoopCount+" was too large:"+IOI.MAX_LOOP_COUNT);
-					tempControlLoopCount = 0;
-				}
-				for(int i = 0; i < tempControlLoopCount; i++)
-				{
-					loop = status.getPropertyInteger("ioi.temp_control.config.loop."+i);
-					rate = tempControl.rampGet(loop);
-					hashTable.put("Temperature.Ramp.Rate."+loop,new Double(rate));
-					isOn = tempControl.rampStatusGet(loop);
-					hashTable.put("Temperature.Ramp.Is_On."+loop,new Boolean(isOn));
-				}
+					// get current ramp rate and whether ramp rate is turned on for each 
+					// temperature loop
+					tempControlLoopCount = status.getPropertyInteger("ioi.temp_control.config.loop_count");
+					if(tempControlLoopCount > IOI.MAX_LOOP_COUNT)
+					{
+						ioi.error(this.getClass().getName()+":getIntermediateStatus:"+
+							  "retrieved temperature control loop count "+
+							  tempControlLoopCount+" was too large:"+IOI.MAX_LOOP_COUNT);
+						tempControlLoopCount = 0;
+					}
+					for(int i = 0; i < tempControlLoopCount; i++)
+					{
+						loop = status.getPropertyInteger("ioi.temp_control.config.loop."+i);
+						rate = tempControl.rampGet(loop);
+						hashTable.put("Temperature.Ramp.Rate."+loop,new Double(rate));
+						isOn = tempControl.rampStatusGet(loop);
+						hashTable.put("Temperature.Ramp.Is_On."+loop,new Boolean(isOn));
+					}
+				}//end if LAKESHORE_331
 				// set standard status value based on current temperature, only if it succeeds
 				setDetectorTemperatureInstrumentStatus(ccdTemperature);
 			}
@@ -391,21 +398,31 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 				temperatureControllerCommsStatus = GET_STATUS_DONE.VALUE_STATUS_FAIL;
 			}// catch
 			// Dewar heater percentage - how much we are heating the dewar to control the temperature.
-			try
+			// Only the Lakeshore has a control loop, the Arduino monitors temperature only.
+			if(tempControlDeviceType.equals("LAKESHORE_331"))
 			{
-				heaterOutput = tempControl.heaterOutputGet();
-				heaterStatus = tempControl.heaterStatusGet();
-				heaterStatusString = tempControl.heaterStatusToString(heaterStatus);
-			}
-			catch(TemperatureControllerNativeException e)
+				try
+				{
+					heaterOutput = tempControl.heaterOutputGet();
+					heaterStatus = tempControl.heaterStatusGet();
+					heaterStatusString = tempControl.heaterStatusToString(heaterStatus);
+				}
+				catch(TemperatureControllerNativeException e)
+				{
+					ioi.error(this.getClass().getName()+":getIntermediateStatus:"+
+						  "Get Temperature status failed.",e);
+					heaterOutput = 0.0;
+					heaterStatus = TemperatureController.HEATER_STATUS_OK;
+					heaterStatusString = "Unknown";
+					temperatureControllerCommsStatus = GET_STATUS_DONE.VALUE_STATUS_FAIL;
+				}// end catch
+			}// end if LAKESHORE_331
+			else
 			{
-				ioi.error(this.getClass().getName()+":getIntermediateStatus:"+
-					  "Get Temperature status failed.",e);
 				heaterOutput = 0.0;
 				heaterStatus = TemperatureController.HEATER_STATUS_OK;
 				heaterStatusString = "Unknown";
-				temperatureControllerCommsStatus = GET_STATUS_DONE.VALUE_STATUS_FAIL;
-			}// end catch
+			}
 		}// end if tempControlEnable
 		else
 		{

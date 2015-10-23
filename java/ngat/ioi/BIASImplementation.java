@@ -250,8 +250,10 @@ public class BIASImplementation extends EXPOSEImplementation implements JMSComma
 			":processCommand:Adding exposure to the data processing list.");
 		try
 		{
+			if(fitsFilenameRename)
+				fitsFilename.nextRunNumber();
 			dataProcessingThread.addDataForProcessing(bFS,acquireRampCommandCallTime,
-								  ioiFitsHeader,FitsFilename.EXPOSURE_CODE_BIAS);
+								  ioiFitsHeader,fitsFilename);
 		}
 		catch(Exception e)
 		{

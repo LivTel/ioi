@@ -1034,6 +1034,7 @@ public class IOI
 		{
 			// retrieve temperature control config
 			tempControlEnable = status.getPropertyBoolean("ioi.temp_control.config.enable");
+			tempControlDeviceType = status.getProperty("ioi.temp_control.config.device.type");
 			tempControlSocketAddress = status.getProperty("ioi.temp_control.config.device.socket.ip");
 			tempControlSocketPort = status.getPropertyInteger("ioi.temp_control.config."+
 									  "device.socket.port");
@@ -1066,25 +1067,35 @@ public class IOI
 				tempControl.setReadRetryCount(tempControlReadRetryCount);
 				tempControl.setReadPause(tempControlReadPause);
 				tempControl.socketOpen(tempControlSocketAddress,tempControlSocketPort);
-				for(int i = 0; i < tempControlLoopCount; i++)
+				if(tempControlDeviceType.equals("LAKESHORE_331"))
 				{
-					tempControl.temperatureSet(tempControlLoop[i],tempControlTargetTemperature[i]);
-					tempControl.rampSet(tempControlLoop[i],tempControlRampOn[i],
-							    tempControlRampRate[i]);
+					for(int i = 0; i < tempControlLoopCount; i++)
+					{
+						tempControl.temperatureSet(tempControlLoop[i],
+									   tempControlTargetTemperature[i]);
+						tempControl.rampSet(tempControlLoop[i],tempControlRampOn[i],
+								    tempControlRampRate[i]);
+					}
+					tempControl.heaterRangeSet(tempControlHeaterRange);
+					// set the temperature controller's analogue output to "loop" mode
+					// This means the temperature controller sets the voltage via a PID algorithm, 
+					// based on the temperature of input B and loop 2 setpoint.
+					tempControl.analogueOutputLoop(false);
+					// turn down output brightness
+					tempControl.displayBrightnessSet(tempControlBrightness);
 				}
-				tempControl.heaterRangeSet(tempControlHeaterRange);
-				// set the temperature controller's analogue output to "loop" mode
-				// This means the temperature controller sets the voltage via a PID algorithm, based
-				// on the temperature of input B and loop 2 setpoint.
-				tempControl.analogueOutputLoop(false);
-				// turn down output brightness
-				tempControl.displayBrightnessSet(tempControlBrightness);
+				else
+				{
+					log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+					    ":startupController:Temperature Controller not enabled.");
+				}// end if temperature control is enabled
 			}
 			else
 			{
 				log(Logging.VERBOSITY_VERY_TERSE,this.getClass().getName()+
-					":startupController:Temperature Controller not enabled.");
-			}// end if temperature control is enabled
+					":startupController:Temperature Controller is an ARDUINO:"+
+				    "Setpoint/Ramp/Display brightness not set.");
+			}// end if on temperature control device type
 		}
 		catch (TemperatureControllerNativeException e)
 		{
