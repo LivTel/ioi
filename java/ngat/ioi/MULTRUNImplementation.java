@@ -191,7 +191,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			" ms and number of exposures "+multRunCommand.getNumberExposures()+".");
 		if(testAbort(multRunCommand,multRunDone) == true)
 			return multRunDone;
-		// send an initiali ACK, actually getDefaultAcknowledgeTime long
+		// send an initial ACK, actually getDefaultAcknowledgeTime long
 		if(sendACK(multRunCommand,multRunDone,0) == false)
 			return multRunDone;
 	// setup exposure status.

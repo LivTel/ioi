@@ -1,5 +1,5 @@
 #!/bin/csh
-# $Header$
+# $HeadURL$
 # Version: $Revision$
 # By $Author$
 # Make a deployment tar file.
