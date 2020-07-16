@@ -61,7 +61,7 @@ endif
 echo "Creating directory structure..."
 # ${deployment_bin_dir}/o/ccd/test/${HOSTTYPE} ${deployment_bin_dir}/o/dsp 
 set dir_count = 0
-set dir_list = "${deployment_dir} ${deployment_dir}/${init_d_dir} ${deployment_icc_dir} ${deployment_bin_dir} ${deployment_dir}/icc/ioi-data ${deployment_dir}/icc/ioi-data/log_archive ${deployment_dir}/icc/i-data ${deployment_dir}/icc/i-data/log_archive ${deployment_dir}/icc/log ${deployment_icc_dir}/config ${deployment_bin_dir}/ioi/java ${deployment_bin_dir}/scripts ${deployment_bin_dir}/ioi/scripts ${deployment_bin_dir}/ics_util/c/${HOSTTYPE} ${deployment_bin_dir}/ccd/misc/${HOSTTYPE} ${deployment_bin_dir}/javalib ${deployment_bin_dir}/lib/${HOSTTYPE} ${deployment_bin_dir}/ccs_gui/java ${deployment_bin_dir}/ccs_gui/java/wav ${deployment_bin_dir}/autobooter/java ${deployment_bin_dir}/ioi/test ${deployment_bin_dir}/dprt/test ${deployment_bin_dir}/dprt/java/ngat/dprt/ioi ${deployment_bin_dir}/libdprt/ioi/test/${HOSTTYPE} ${deployment_bin_dir}/ioi/temperature_controller/test//${HOSTTYPE}"
+set dir_list = "${deployment_dir} ${deployment_dir}/${init_d_dir} ${deployment_icc_dir} ${deployment_bin_dir} ${deployment_dir}/icc/ioi-data ${deployment_dir}/icc/ioi-data/log_archive ${deployment_dir}/icc/i-data ${deployment_dir}/icc/i-data/log_archive ${deployment_dir}/icc/log ${deployment_icc_dir}/config ${deployment_bin_dir}/ioi/java ${deployment_bin_dir}/scripts ${deployment_bin_dir}/ioi/scripts ${deployment_bin_dir}/ics_util/c/${HOSTTYPE} ${deployment_bin_dir}/ccd/misc/${HOSTTYPE} ${deployment_bin_dir}/javalib ${deployment_bin_dir}/lib/${HOSTTYPE} ${deployment_bin_dir}/ics_gui/java ${deployment_bin_dir}/ics_gui/java/wav ${deployment_bin_dir}/autobooter/java ${deployment_bin_dir}/ioi/test ${deployment_bin_dir}/dprt/test ${deployment_bin_dir}/dprt/java/ngat/dprt/ioi ${deployment_bin_dir}/libdprt/ioi/test/${HOSTTYPE} ${deployment_bin_dir}/ioi/temperature_controller/test//${HOSTTYPE}"
 foreach dir ( ${dir_list} )
 	mkdir -p ${dir}
 	if ($status != 0) then
@@ -148,7 +148,7 @@ echo "${jar_count} jars copied."
 #
 # 
 echo "Copying Java class directories..."
-set java_class_dir_list = "autobooter/java ccs_gui/java dprt/test dprt/java/ngat/dprt dprt/java/ngat/dprt/ioi ioi/test"
+set java_class_dir_list = "autobooter/java ics_gui/java dprt/test dprt/java/ngat/dprt dprt/java/ngat/dprt/ioi ioi/test"
 set java_class_dir_count = 0
 foreach java_class_dir ( ${java_class_dir_list} )
 	echo "Java class directory : ${java_class_dir}"
@@ -291,7 +291,7 @@ echo "${dir_count} C test program directories copied, containg ${file_count} C t
 # Scripts
 #
 echo "Copying scripts..."
-set file_list = "ioi/scripts/ioi_engineering_mode ioi/scripts/ioi_clock_test_cron ioi/scripts/ioi_delete_old_data_cron scripts/killhup.csh scripts/fuser_check ccs_gui/java/ioigui ioi/scripts/ioi_status_cron ioi/scripts/multrun_test"
+set file_list = "ioi/scripts/ioi_engineering_mode ioi/scripts/ioi_clock_test_cron ioi/scripts/ioi_delete_old_data_cron scripts/killhup.csh scripts/fuser_check ics_gui/java/ioigui ioi/scripts/ioi_status_cron ioi/scripts/multrun_test"
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )
@@ -310,7 +310,7 @@ echo "${file_count} scripts copied."
 #
 # in bin sub-directories
 echo "Copying machine configuration files..."
-set file_list = "ioi/java/${machine_name}.fits.properties ioi/java/${machine_name}.ioi.net.properties ioi/java/${machine_name}.ioi.properties ccs_gui/java/${machine_name}.ioi.ccs_gui.properties ccs_gui/java/${machine_name}.ioi.ccs_gui_config.properties ccs_gui/java/${machine_name}.ccs_gui.fits.properties ccs_gui/java/${machine_name}.ioi.ics_gui.fits.bss.properties autobooter/java/${machine_name}.ioi.autobooter.properties dprt/java/${machine_name}.ioi.dprt.properties "
+set file_list = "ioi/java/${machine_name}.fits.properties ioi/java/${machine_name}.ioi.net.properties ioi/java/${machine_name}.ioi.properties ics_gui/java/${machine_name}.ioi.ics_gui.properties ics_gui/java/${machine_name}.ioi.ics_gui_config.properties ics_gui/java/${machine_name}.ics_gui.fits.properties ics_gui/java/${machine_name}.ioi.ics_gui.fits.bss.properties autobooter/java/${machine_name}.ioi.autobooter.properties dprt/java/${machine_name}.ioi.dprt.properties "
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )
@@ -385,8 +385,8 @@ echo "${file_count} serialized Java message files copied."
 # gif files
 #
 echo "Copying gif/wav files..."
-set file_list = "ccs_gui/java/lt.gif ccs_gui/java/lt_icon.gif ccs_gui/java/ratcam.gif ccs_gui/java/wav/halopperational.wav ccs_gui/java/wav/halsorrydave.wav ccs_gui/java/wav/halsmoothly.wav ccs_gui/java/wav/halmessage4u.wav ccs_gui/java/wav/halgoodevening.wav"
-# ccs_gui/java/wav/command_completed.wav ccs_gui/java/wav/command_failed.wav ccs_gui/java/wav/filename.wav ccs_gui/java/wav/iss_message.wav ccs_gui/java/wav/welcome.wav
+set file_list = "ics_gui/java/lt.gif ics_gui/java/lt_icon.gif ics_gui/java/ratcam.gif ics_gui/java/wav/halopperational.wav ics_gui/java/wav/halsorrydave.wav ics_gui/java/wav/halsmoothly.wav ics_gui/java/wav/halmessage4u.wav ics_gui/java/wav/halgoodevening.wav"
+# ics_gui/java/wav/command_completed.wav ics_gui/java/wav/command_failed.wav ics_gui/java/wav/filename.wav ics_gui/java/wav/iss_message.wav ics_gui/java/wav/welcome.wav
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )
