@@ -26,7 +26,7 @@ end
 alias delete_log_files 		'/icc/bin/scripts/delete_log_files.csh'
 alias ioi_reboot       		'/icc/bin/scripts/ioi_reboot'
 alias ioi_engineering_mode 	'/icc/bin/scripts/ioi_engineering_mode'
-alias ioigui           		'/icc/bin/ccs_gui/java/ioigui'
+alias ioigui           		'/icc/bin/ics_gui/java/ioigui'
 alias myps             		'ps -e -o pid,pcpu,vsz,ruser,args'
 # Do not delete the next comment, it delimits the cshrc updated by the ioi_tar_install script.
 # <ioi_install:end>
