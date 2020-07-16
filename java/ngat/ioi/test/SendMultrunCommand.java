@@ -8,7 +8,6 @@ import java.net.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import ngat.o.*;
 import ngat.message.ISS_INST.*;
 import ngat.phase2.*;
 import ngat.util.*;
