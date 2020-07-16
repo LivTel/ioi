@@ -21,7 +21,7 @@ top: $(OBJS)
 	done;
 
 $(BINDIR)/%.class:%.java
-	$(JAVAC) -Xlint -sourcepath .:$(IOI_SRC_HOME)/java \
+	$(JAVAC) -Xlint $(JAVAC_FLAGS) -sourcepath .:$(IOI_SRC_HOME)/java \
 		-classpath $(IOI_BIN_HOME)/java:$(CLASSPATH) $(JAVAC_OPTIONS) -d $(IOI_BIN_HOME)/java $<
 
 clean: tidy

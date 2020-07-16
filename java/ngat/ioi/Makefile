@@ -39,7 +39,7 @@ top: dirs $(OBJS) config scripts dirs
 # Java classes
 #
 $(BINDIR)/%.class:%.java
-	$(JAVAC) -sourcepath .:$(IOI_SRC_HOME)/java \
+	$(JAVAC) $(JAVAC_FLAGS) -sourcepath .:$(IOI_SRC_HOME)/java \
 		-classpath $(IOI_BIN_HOME)/java:$(CLASSPATH) $(JAVAC_OPTIONS) -d $(IOI_BIN_HOME)/java $<
 
 #
